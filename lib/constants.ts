@@ -1,0 +1,2 @@
+export const DEFAULT_MAX_IMAGE_WIDTH = 1280
+export const DEFAULT_WEBP_QUALITY = 0.82
