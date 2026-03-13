@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getGithubUser, listUserRepos } from '@/lib/github-api'
 import {
   consumeGithubOauthState,
+  getGithubPageConfigPreference,
   getGithubRepoConfigPreference,
   saveGithubSession,
 } from '@/lib/github-session'
@@ -55,6 +56,7 @@ export async function GET(request: NextRequest) {
 
   const githubUser = await getGithubUser(tokenData.access_token)
   const savedRepoConfig = await getGithubRepoConfigPreference()
+  const savedPageConfig = await getGithubPageConfigPreference()
   let repoConfig = null
 
   if (savedRepoConfig) {
@@ -81,6 +83,7 @@ export async function GET(request: NextRequest) {
       avatarUrl: githubUser.avatar_url,
     },
     repoConfig,
+    pageConfig: savedPageConfig,
   })
 
   return NextResponse.redirect(new URL('/', getBaseUrl(request)))

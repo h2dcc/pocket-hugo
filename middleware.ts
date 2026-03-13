@@ -21,5 +21,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/new', '/editor/:path*', '/publish/:path*'],
+  matcher: ['/new', '/editor/:path*', '/publish/:path*', '/page-editor/:path*'],
 }

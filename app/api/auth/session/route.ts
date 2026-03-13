@@ -13,5 +13,6 @@ export async function GET() {
     authenticated: true,
     user: session.user,
     repoConfig: session.repoConfig,
+    pageConfig: session.pageConfig,
   })
 }

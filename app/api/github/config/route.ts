@@ -13,6 +13,7 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       repoConfig: session.repoConfig,
+      pageConfig: session.pageConfig,
     })
   } catch (error) {
     return NextResponse.json(

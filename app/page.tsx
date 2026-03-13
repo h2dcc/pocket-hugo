@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DraftList from '@/components/post/DraftList'
 import LanguageToggle from '@/components/language/LanguageToggle'
@@ -17,7 +17,7 @@ import {
 import { useLanguage } from '@/lib/use-language'
 import type { PostDraft } from '@/lib/types'
 
-type PanelKey = 'auth' | 'repo' | 'settings' | null
+type PanelKey = 'auth' | 'repo' | 'page' | 'settings' | null
 
 type GithubSessionResponse = {
   authenticated: boolean
@@ -31,6 +31,10 @@ type GithubSessionResponse = {
     repo: string
     branch: string
     postsBasePath: string
+  } | null
+  pageConfig?: {
+    filePath: string
+    mode: 'page' | 'live'
   } | null
 }
 
@@ -75,10 +79,25 @@ function SettingsIcon() {
   )
 }
 
+function PageIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M7 4.5H13.8L18 8.7V19.5A1.5 1.5 0 0 1 16.5 21H7.5A1.5 1.5 0 0 1 6 19.5V6A1.5 1.5 0 0 1 7.5 4.5H7ZM13 5V9H17"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 export default function HomePage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const pageConfigCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [drafts, setDrafts] = useState<PostDraft[]>([])
   const [authLoading, setAuthLoading] = useState(true)
   const [reposLoading, setReposLoading] = useState(false)
@@ -97,12 +116,31 @@ export default function HomePage() {
   const [directories, setDirectories] = useState<GithubDirectoryItem[]>([])
   const [selectedRepoFullName, setSelectedRepoFullName] = useState('')
   const [selectedBranch, setSelectedBranch] = useState('')
-  const [postsBasePath, setPostsBasePath] = useState('content/posts')
+  const [postsBasePath, setPostsBasePath] = useState('')
   const [directoryPath, setDirectoryPath] = useState('')
+  const [pageConfigError, setPageConfigError] = useState('')
+  const [pageConfigStatus, setPageConfigStatus] = useState('')
+  const [savingPageConfig, setSavingPageConfig] = useState(false)
+  const [pageDirectoryPath, setPageDirectoryPath] = useState('')
+  const [pageDirectories, setPageDirectories] = useState<GithubDirectoryItem[]>([])
+  const [pageDirectoriesLoading, setPageDirectoriesLoading] = useState(false)
+  const [pageDirectoryError, setPageDirectoryError] = useState('')
+  const [pageFiles, setPageFiles] = useState<GithubDirectoryItem[]>([])
+  const [pageFilesLoading, setPageFilesLoading] = useState(false)
+  const [pageFilesError, setPageFilesError] = useState('')
+  const [pageFileName, setPageFileName] = useState('')
+  const [pageMode, setPageMode] = useState<'page' | 'live'>('live')
 
   const hasRepoConfig = Boolean(session.repoConfig)
+  const hasPageConfig = Boolean(session.pageConfig?.filePath)
   const matchedRepo = repos.find((repo) => repo.fullName === selectedRepoFullName)
   const pathSegments = directoryPath ? directoryPath.split('/') : []
+  const pagePathSegments = pageDirectoryPath ? pageDirectoryPath.split('/') : []
+  const pageFilePath = pageDirectoryPath ? `${pageDirectoryPath}/${pageFileName}` : pageFileName
+  const pageFileOptions = useMemo(
+    () => pageFiles.map((file) => file.name),
+    [pageFiles],
+  )
 
   const reloadKey = useMemo(() => {
     if (!session.repoConfig) return 'no-config'
@@ -169,6 +207,7 @@ export default function HomePage() {
         authenticated: nextSession.authenticated,
         user: nextSession.user,
         repoConfig: nextSession.repoConfig || null,
+        pageConfig: nextSession.pageConfig || null,
       })
 
       if (nextSession.repoConfig) {
@@ -178,6 +217,16 @@ export default function HomePage() {
         setSelectedBranch(nextSession.repoConfig.branch)
         setPostsBasePath(nextSession.repoConfig.postsBasePath)
         setDirectoryPath(nextSession.repoConfig.postsBasePath)
+      }
+
+      if (nextSession.pageConfig) {
+        const segments = nextSession.pageConfig.filePath.split('/')
+        setPageFileName(segments.pop() || 'live.md')
+        setPageDirectoryPath(segments.join('/'))
+        setPageMode(nextSession.pageConfig.mode)
+      }
+
+      if (nextSession.repoConfig || nextSession.pageConfig) {
         setVisiblePanel(null)
       } else if (nextSession.authenticated) {
         setVisiblePanel(null)
@@ -195,6 +244,14 @@ export default function HomePage() {
   useEffect(() => {
     refreshDrafts()
     loadSession()
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (pageConfigCollapseTimerRef.current) {
+        clearTimeout(pageConfigCollapseTimerRef.current)
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -318,6 +375,100 @@ export default function HomePage() {
     fetchDirectories()
   }, [session.authenticated, selectedRepoFullName, selectedBranch, directoryPath])
 
+  useEffect(() => {
+    const [owner, repo] = selectedRepoFullName.split('/')
+
+    if (!session.authenticated || !owner || !repo || !selectedBranch.trim()) {
+      setPageDirectories([])
+      setPageDirectoryError('')
+      setPageFiles([])
+      setPageFilesError('')
+      return
+    }
+
+    async function fetchPageDirectories() {
+      setPageDirectoriesLoading(true)
+      setPageDirectoryError('')
+
+      try {
+        const query = new URLSearchParams({
+          owner,
+          repo,
+          branch: selectedBranch.trim(),
+          path: pageDirectoryPath,
+        })
+        const response = await fetch(`/api/github/directories?${query.toString()}`, {
+          cache: 'no-store',
+        })
+        const result = await response.json()
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || (isEnglish ? 'Failed to load directories' : '读取目录失败'))
+        }
+
+        setPageDirectories((result.directories || []) as GithubDirectoryItem[])
+      } catch (error) {
+        setPageDirectoryError(error instanceof Error ? error.message : isEnglish ? 'Failed to load directories' : '读取目录失败')
+        setPageDirectories([])
+      } finally {
+        setPageDirectoriesLoading(false)
+      }
+    }
+
+    fetchPageDirectories()
+  }, [session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
+
+  useEffect(() => {
+    const [owner, repo] = selectedRepoFullName.split('/')
+
+    if (!session.authenticated || !owner || !repo || !selectedBranch.trim()) {
+      setPageFiles([])
+      setPageFilesError('')
+      return
+    }
+
+    async function fetchPageFiles() {
+      setPageFilesLoading(true)
+      setPageFilesError('')
+
+      try {
+        const query = new URLSearchParams({
+          owner,
+          repo,
+          branch: selectedBranch.trim(),
+          path: pageDirectoryPath,
+        })
+        const response = await fetch(`/api/github/page-files?${query.toString()}`, {
+          cache: 'no-store',
+        })
+        const result = await response.json()
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || (isEnglish ? 'Failed to load files' : '读取文件失败'))
+        }
+
+        setPageFiles((result.files || []) as GithubDirectoryItem[])
+      } catch (error) {
+        setPageFilesError(error instanceof Error ? error.message : isEnglish ? 'Failed to load files' : '读取文件失败')
+        setPageFiles([])
+      } finally {
+        setPageFilesLoading(false)
+      }
+    }
+
+    fetchPageFiles()
+  }, [session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
+
+  useEffect(() => {
+    if (!pageFileOptions.length) {
+      setPageFileName('')
+      return
+    }
+
+    if (pageFileOptions.includes(pageFileName)) return
+    setPageFileName(pageFileOptions[0])
+  }, [pageFileName, pageFileOptions])
+
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     setSession({ authenticated: false })
@@ -325,11 +476,17 @@ export default function HomePage() {
     setDirectories([])
     setSelectedRepoFullName('')
     setSelectedBranch('')
-    setPostsBasePath('content/posts')
+    setPostsBasePath('')
     setDirectoryPath('')
+    setPageDirectoryPath('')
+    setPageFiles([])
+    setPageFileName('')
+    setPageMode('live')
     setConfigStatus('')
     setConfigError('')
     setDirectoryError('')
+    setPageConfigError('')
+    setPageConfigStatus('')
     setVisiblePanel('auth')
     router.replace('/')
   }
@@ -402,6 +559,20 @@ export default function HomePage() {
     setConfigError('')
   }
 
+  function handleGoToPagePath(nextPath: string) {
+    setPageDirectoryPath(nextPath)
+    setPageFileName('')
+    setPageConfigError('')
+    setPageConfigStatus('')
+  }
+
+  function handlePageModeChange(nextMode: 'page' | 'live') {
+    setPageMode(nextMode)
+    setPageFileName('')
+    setPageConfigError('')
+    setPageConfigStatus('')
+  }
+
   function handleSelectCurrentDirectory() {
     if (!directoryPath) {
       setConfigError(isEnglish ? 'Please open a posts directory before saving.' : '请先进入一个文章目录后再保存。')
@@ -427,6 +598,64 @@ export default function HomePage() {
   function handleRemoteLoaded(folderName: string) {
     refreshDrafts()
     router.push(`/editor/${folderName}`)
+  }
+
+  async function handleSavePageConfig(collapseAfterDelay = true) {
+    if (!hasRepoConfig) {
+      setPageConfigError(isEnglish ? 'Please save repository settings first.' : '请先保存仓库配置。')
+      setVisiblePanel('repo')
+      return false
+    }
+
+    if (!pageFileName.trim()) {
+      setPageConfigError(isEnglish ? 'Please enter a file name.' : '请填写页面文件名。')
+      return false
+    }
+
+    setSavingPageConfig(true)
+    setPageConfigError('')
+    setPageConfigStatus('')
+
+    try {
+      const response = await fetch('/api/github/page-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filePath: pageFilePath,
+          mode: pageMode,
+        }),
+      })
+      const result = await response.json()
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || (isEnglish ? 'Failed to save page settings' : '页面配置保存失败'))
+      }
+
+      setSession((prev) => ({ ...prev, pageConfig: result.pageConfig }))
+      setPageConfigStatus(isEnglish ? 'Page editor settings saved.' : '页面编辑配置已保存。')
+      if (pageConfigCollapseTimerRef.current) {
+        clearTimeout(pageConfigCollapseTimerRef.current)
+      }
+      if (collapseAfterDelay) {
+        pageConfigCollapseTimerRef.current = setTimeout(() => {
+          setVisiblePanel((current) => (current === 'page' ? null : current))
+          pageConfigCollapseTimerRef.current = null
+        }, 5000)
+      }
+      return true
+    } catch (error) {
+      setPageConfigError(error instanceof Error ? error.message : isEnglish ? 'Failed to save page settings' : '页面配置保存失败')
+      setVisiblePanel('page')
+      return false
+    } finally {
+      setSavingPageConfig(false)
+    }
+  }
+
+  async function handleOpenPageEditor() {
+    const saved = await handleSavePageConfig(false)
+    if (!saved) return
+    router.push('/page-editor')
   }
 
   function togglePanel(panel: Exclude<PanelKey, null>) {
@@ -505,6 +734,26 @@ export default function HomePage() {
               >
                 <RepoIcon />
                 <span>{isEnglish ? 'Repository' : '仓库设置'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (!hasRepoConfig) {
+                    setConfigError(isEnglish ? 'Please save repository settings first.' : '请先保存仓库配置。')
+                    setVisiblePanel('repo')
+                    return
+                  }
+                  togglePanel('page')
+                }}
+                style={{
+                  ...pillButtonStyle,
+                  background: visiblePanel === 'page' ? 'var(--accent)' : 'var(--card)',
+                  color: visiblePanel === 'page' ? 'var(--accent-contrast)' : 'var(--foreground)',
+                }}
+              >
+                <PageIcon />
+                <span>{isEnglish ? 'Page Editor' : '页面编辑'}</span>
               </button>
 
               <button
@@ -702,7 +951,7 @@ export default function HomePage() {
                 }}
               >
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Selected Directory' : '已选择目录'}</div>
-                <div style={{ marginTop: 6, fontSize: 15, wordBreak: 'break-all' }}>
+                <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, textAlign: 'center', wordBreak: 'break-all', color: postsBasePath ? 'var(--foreground)' : 'var(--muted)' }}>
                   {postsBasePath || (isEnglish ? 'Not selected' : '未选择')}
                 </div>
               </div>
@@ -865,7 +1114,22 @@ export default function HomePage() {
           </section>
 
           {configError ? <div style={{ color: 'var(--danger)' }}>{configError}</div> : null}
-          {configStatus ? <div style={{ color: '#1677ff' }}>{configStatus}</div> : null}
+          {configStatus ? (
+            <div
+              style={{
+                color: 'var(--accent-soft-text)',
+                background: 'var(--accent-soft)',
+                borderRadius: 14,
+                padding: '12px 14px',
+                textAlign: 'center',
+                fontSize: 16,
+                fontWeight: 800,
+                wordBreak: 'break-all',
+              }}
+            >
+              {configStatus}
+            </div>
+          ) : null}
 
           <button
             type="button"
@@ -899,32 +1163,354 @@ export default function HomePage() {
         <SiteSettingsPanel onSaved={() => setVisiblePanel(null)} />
       ) : null}
 
-      {session.authenticated ? (
-        <section style={{ display: 'grid', gap: 12 }}>
-          <Link
-            href={hasRepoConfig ? '/new' : '#'}
-            onClick={(event) => {
-              if (!hasRepoConfig) {
-                event.preventDefault()
-                setConfigError(isEnglish ? 'Please save repository settings first.' : '请先保存仓库配置。')
-                setVisiblePanel('repo')
-              }
-            }}
+      {visiblePanel === 'page' && session.authenticated ? (
+        <section style={cardStyle}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'Page Editor' : '页面编辑'}</h2>
+            <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
+              {isEnglish
+                ? 'Configure one standalone Hugo page or a quick timeline page, then reopen it anytime.'
+                : '配置一个独立 Hugo 页面或生活记录页面，之后可以随时继续编辑。'}
+            </div>
+          </div>
+
+          <label style={{ display: 'grid', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600 }}>{isEnglish ? 'Page Mode' : '页面模式'}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {([
+                ['live', isEnglish ? 'Quick Timeline' : '生活记录'],
+                ['page', isEnglish ? 'Standalone Page' : '独立页面'],
+              ] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => handlePageModeChange(value)}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: pageMode === value ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    background: pageMode === value ? 'var(--accent)' : 'var(--card)',
+                    color: pageMode === value ? 'var(--accent-contrast)' : 'var(--foreground)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </label>
+
+          <section
             style={{
-              display: 'block',
-              padding: '18px 20px',
+              border: '1px solid var(--border)',
               borderRadius: 16,
-              background: hasRepoConfig ? 'var(--accent)' : '#9ca3af',
-              color: hasRepoConfig ? 'var(--accent-contrast)' : '#fff',
-              textDecoration: 'none',
-              fontSize: 18,
-              fontWeight: 700,
-              textAlign: 'center',
-              boxShadow: 'var(--shadow)',
+              background: 'var(--card-muted)',
+              padding: 14,
+              display: 'grid',
+              gap: 12,
             }}
           >
-            {isEnglish ? '+ New Post' : '+ 新建文章'}
-          </Link>
+            <div style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>
+                {isEnglish ? 'Page Directory' : '页面目录'}
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                {isEnglish
+                  ? 'Choose a directory first, then pick one of the Markdown files that already exists in that directory.'
+                  : '先选择页面目录，再从该目录里实际存在的 Markdown 文件中点选目标文件。'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gap: 10 }}>
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 14,
+                  border: '1px solid var(--border)',
+                  background: 'var(--card)',
+                }}
+              >
+                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Browsing' : '当前浏览'}</div>
+                <div style={{ marginTop: 6, fontSize: 15, wordBreak: 'break-all' }}>
+                  {pageDirectoryPath || (isEnglish ? 'Not selected yet' : '尚未选择')}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: 10,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleGoToPagePath('')}
+                  disabled={pageDirectoriesLoading}
+                  style={{
+                    minHeight: 48,
+                    padding: '10px 12px',
+                    borderRadius: 14,
+                    border: '1px solid var(--border)',
+                    background: 'var(--card)',
+                    color: 'var(--foreground)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isEnglish ? 'Root' : '根目录'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleGoToPagePath(pagePathSegments.slice(0, -1).join('/'))}
+                  disabled={pageDirectoriesLoading || !pageDirectoryPath}
+                  style={{
+                    minHeight: 48,
+                    padding: '10px 12px',
+                    borderRadius: 14,
+                    border: '1px solid var(--border)',
+                    background: 'var(--card)',
+                    color: 'var(--foreground)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                  }}
+                >
+                  {isEnglish ? 'Up One Level' : '返回上级'}
+                </button>
+              </div>
+
+              {pageDirectoriesLoading ? (
+                <div style={{ color: 'var(--muted)', fontSize: 14 }}>{isEnglish ? 'Loading directories...' : '正在加载目录...'}</div>
+              ) : null}
+              {pageDirectoryError ? (
+                <div style={{ color: 'var(--danger)', fontSize: 14 }}>{pageDirectoryError}</div>
+              ) : null}
+
+              <div style={{ display: 'grid', gap: 10, maxHeight: 260, overflowY: 'auto' }}>
+                {pageDirectories.map((directory) => (
+                  <button
+                    key={directory.path}
+                    type="button"
+                    onClick={() => handleGoToPagePath(directory.path)}
+                    style={{
+                      textAlign: 'left',
+                      padding: '14px 14px',
+                      borderRadius: 14,
+                      border: '1px solid var(--border)',
+                      background: 'var(--card)',
+                      color: 'var(--foreground)',
+                      cursor: 'pointer',
+                      display: 'grid',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 15, fontWeight: 700 }}>{directory.name}</span>
+                    <span style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>
+                      {directory.path}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          <section
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              background: 'var(--card-muted)',
+              padding: 14,
+              display: 'grid',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontSize: 15, fontWeight: 700 }}>
+                {isEnglish ? 'Page File' : '页面文件'}
+              </span>
+              <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                {pageMode === 'live'
+                  ? isEnglish
+                    ? 'Select the existing Markdown file used for your quick timeline page.'
+                    : '请选择用于生活记录页的现有 Markdown 文件。'
+                  : isEnglish
+                    ? 'Select the existing Markdown file you want to edit as a standalone page.'
+                    : '请选择你要作为独立页面编辑的现有 Markdown 文件。'}
+              </span>
+            </div>
+
+            {pageFilesLoading ? (
+              <div style={{ color: 'var(--muted)', fontSize: 14 }}>{isEnglish ? 'Loading files...' : '正在加载文件...'}</div>
+            ) : null}
+            {pageFilesError ? (
+              <div style={{ color: 'var(--danger)', fontSize: 14 }}>{pageFilesError}</div>
+            ) : null}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
+                gap: 10,
+              }}
+            >
+              {pageFileOptions.map((fileName) => (
+                <button
+                  key={fileName}
+                  type="button"
+                  onClick={() => setPageFileName(fileName)}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 14,
+                    border: pageFileName === fileName ? '1px solid var(--accent)' : '1px solid var(--border)',
+                    background: pageFileName === fileName ? 'var(--accent)' : 'var(--card)',
+                    color: pageFileName === fileName ? 'var(--accent-contrast)' : 'var(--foreground)',
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    textAlign: 'left',
+                    wordBreak: 'break-all',
+                  }}
+                >
+                  {fileName}
+                </button>
+              ))}
+            </div>
+            {!pageFilesLoading && !pageFilesError && pageFileOptions.length === 0 ? (
+              <div
+                style={{
+                  padding: 12,
+                  borderRadius: 14,
+                  border: '1px dashed var(--border)',
+                  color: 'var(--muted)',
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  background: 'var(--card)',
+                }}
+              >
+                {isEnglish
+                  ? 'No Markdown files were found in this directory. Please choose another directory that already contains a page file.'
+                  : '这个目录下没有找到 Markdown 文件，请切换到已经存在页面文件的目录。'}
+              </div>
+            ) : null}
+          </section>
+
+          <div style={{ fontSize: 13, color: 'var(--muted)', wordBreak: 'break-all' }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Target file' : '目标文件'}</div>
+            <div
+              style={{
+                marginTop: 8,
+                fontSize: 18,
+                fontWeight: 800,
+                textAlign: 'center',
+                color: pageFileName ? 'var(--foreground)' : 'var(--muted)',
+              }}
+            >
+              {pageFilePath || (isEnglish ? 'Not selected' : '未选择')}
+            </div>
+          </div>
+
+          {pageConfigError ? <div style={{ color: 'var(--danger)' }}>{pageConfigError}</div> : null}
+          {pageConfigStatus ? <div style={{ color: '#1677ff' }}>{pageConfigStatus}</div> : null}
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => {
+                void handleSavePageConfig()
+              }}
+              disabled={savingPageConfig}
+              style={{
+                padding: '14px 18px',
+                borderRadius: 12,
+                background: 'var(--accent)',
+                color: 'var(--accent-contrast)',
+                border: 'none',
+                cursor: 'pointer',
+                fontWeight: 700,
+                opacity: savingPageConfig ? 0.7 : 1,
+              }}
+            >
+              {savingPageConfig ? (isEnglish ? 'Saving...' : '保存中...') : isEnglish ? 'Save Page Settings' : '保存页面配置'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenPageEditor}
+              disabled={!pageFileName.trim()}
+              style={{
+                padding: '14px 18px',
+                borderRadius: 12,
+                border: '1px solid var(--border)',
+                background: 'var(--card)',
+                color: 'var(--foreground)',
+                cursor: 'pointer',
+                fontWeight: 700,
+              }}
+            >
+              {isEnglish ? 'Open Editor' : '打开页面编辑'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {session.authenticated ? (
+        <section style={{ display: 'grid', gap: 12 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns:
+                hasPageConfig && session.pageConfig?.mode === 'live'
+                  ? 'repeat(2, minmax(0, 1fr))'
+                  : '1fr',
+              gap: 12,
+            }}
+          >
+            <Link
+              href={hasRepoConfig ? '/new' : '#'}
+              onClick={(event) => {
+                if (!hasRepoConfig) {
+                  event.preventDefault()
+                  setConfigError(isEnglish ? 'Please save repository settings first.' : '请先保存仓库配置。')
+                  setVisiblePanel('repo')
+                }
+              }}
+              style={{
+                display: 'block',
+                padding: '18px 20px',
+                borderRadius: 16,
+                background: hasRepoConfig ? 'var(--accent)' : '#9ca3af',
+                color: hasRepoConfig ? 'var(--accent-contrast)' : '#fff',
+                textDecoration: 'none',
+                fontSize: 18,
+                fontWeight: 700,
+                textAlign: 'center',
+                boxShadow: 'var(--shadow)',
+              }}
+            >
+              {isEnglish ? '+ New Post' : '+ 新建文章'}
+            </Link>
+
+            {hasPageConfig && session.pageConfig?.mode === 'live' ? (
+              <Link
+                href="/page-editor"
+                style={{
+                  display: 'block',
+                  padding: '18px 20px',
+                  borderRadius: 16,
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  textDecoration: 'none',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  textAlign: 'center',
+                  boxShadow: 'var(--shadow)',
+                  border: '1px solid var(--border)',
+                }}
+              >
+                {isEnglish ? 'Quick Timeline' : '快速发布说说'}
+              </Link>
+            ) : null}
+          </div>
         </section>
       ) : null}
 

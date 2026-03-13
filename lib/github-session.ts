@@ -6,6 +6,7 @@ import {
 } from 'node:crypto'
 import { cookies } from 'next/headers'
 import {
+  GITHUB_PAGE_CONFIG_COOKIE,
   GITHUB_REPO_CONFIG_COOKIE,
   GITHUB_OAUTH_STATE_COOKIE,
   GITHUB_SESSION_COOKIE,
@@ -26,6 +27,12 @@ export type GithubSession = {
     avatarUrl: string
   }
   repoConfig: GithubRepoConfig | null
+  pageConfig: GithubPageConfig | null
+}
+
+export type GithubPageConfig = {
+  filePath: string
+  mode: 'page' | 'live'
 }
 
 function getSessionSecret() {
@@ -119,6 +126,29 @@ export async function saveGithubSession(session: GithubSession) {
   })
 }
 
+export async function getGithubPageConfigPreference() {
+  const cookieStore = await cookies()
+  const rawValue = cookieStore.get(GITHUB_PAGE_CONFIG_COOKIE)?.value
+
+  if (!rawValue) {
+    return null
+  }
+
+  return deserializeEncryptedValue<GithubPageConfig>(rawValue)
+}
+
+export async function saveGithubPageConfigPreference(pageConfig: GithubPageConfig) {
+  const cookieStore = await cookies()
+
+  cookieStore.set(GITHUB_PAGE_CONFIG_COOKIE, serializeEncryptedValue(pageConfig), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 180,
+  })
+}
+
 export async function getGithubRepoConfigPreference() {
   const cookieStore = await cookies()
   const rawValue = cookieStore.get(GITHUB_REPO_CONFIG_COOKIE)?.value
@@ -182,5 +212,9 @@ export function generateOauthState() {
 }
 
 export function normalizePostsBasePath(input: string) {
+  return input.trim().replace(/^\/+|\/+$/g, '')
+}
+
+export function normalizePageFilePath(input: string) {
   return input.trim().replace(/^\/+|\/+$/g, '')
 }
