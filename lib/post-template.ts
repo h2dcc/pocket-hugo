@@ -1,7 +1,8 @@
 import type { Frontmatter, PostDraft } from './types'
+import { normalizeFrontmatter } from './frontmatter'
 
 export function createDefaultFrontmatter(slug: string, date: string): Frontmatter {
-  return {
+  return normalizeFrontmatter({
     description: '',
     title: '',
     slug,
@@ -9,7 +10,8 @@ export function createDefaultFrontmatter(slug: string, date: string): Frontmatte
     categories: [],
     tags: [],
     image: '',
-  }
+    customFields: [],
+  })
 }
 
 export function createEmptyDraft(folderName: string, slug: string, date: string): PostDraft {

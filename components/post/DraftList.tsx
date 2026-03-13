@@ -8,9 +8,24 @@ type Props = {
   onDelete: (folderName: string) => void
 }
 
+const actionButtonStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid var(--border)',
+  background: 'var(--card)',
+  color: 'var(--foreground)',
+  cursor: 'pointer',
+  fontSize: 14,
+  fontWeight: 600,
+  textDecoration: 'none',
+}
+
 export default function DraftList({ drafts, onDelete }: Props) {
   if (!drafts.length) {
-    return <p style={{ color: '#666' }}>暂无本地草稿。</p>
+    return <p style={{ color: 'var(--muted)' }}>暂无本地草稿。</p>
   }
 
   return (
@@ -19,37 +34,34 @@ export default function DraftList({ drafts, onDelete }: Props) {
         <div
           key={draft.folderName}
           style={{
-            border: '1px solid #ddd',
+            border: '1px solid var(--border)',
             borderRadius: 12,
             padding: 16,
             display: 'grid',
             gap: 8,
+            background: 'var(--card-muted)',
           }}
         >
           <div style={{ fontWeight: 600 }}>
             {draft.frontmatter.title || '(未命名文章)'}
           </div>
 
-          <div style={{ color: '#666', wordBreak: 'break-all' }}>
-            {draft.folderName}
-          </div>
+          <div style={{ color: 'var(--muted)', wordBreak: 'break-all' }}>{draft.folderName}</div>
 
-          <div style={{ color: '#666' }}>
-            {draft.frontmatter.date || '无日期'}
-          </div>
+          <div style={{ color: 'var(--muted)' }}>{draft.frontmatter.date || '无日期'}</div>
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link href={`/editor/${draft.folderName}`}>继续编辑</Link>
+            <Link href={`/editor/${draft.folderName}`} style={actionButtonStyle}>
+              继续编辑
+            </Link>
 
             <button
               type="button"
               onClick={() => onDelete(draft.folderName)}
               style={{
-                border: 'none',
-                background: 'transparent',
-                color: 'crimson',
-                cursor: 'pointer',
-                padding: 0,
+                ...actionButtonStyle,
+                border: '1px solid #ef4444',
+                color: '#ef4444',
               }}
             >
               删除草稿

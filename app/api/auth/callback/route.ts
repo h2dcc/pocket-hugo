@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getGithubUser } from '@/lib/github-api'
+import { getGithubUser, listUserRepos } from '@/lib/github-api'
 import {
   consumeGithubOauthState,
+  getGithubRepoConfigPreference,
   saveGithubSession,
 } from '@/lib/github-session'
 
@@ -53,6 +54,24 @@ export async function GET(request: NextRequest) {
   }
 
   const githubUser = await getGithubUser(tokenData.access_token)
+  const savedRepoConfig = await getGithubRepoConfigPreference()
+  let repoConfig = null
+
+  if (savedRepoConfig) {
+    const repos = await listUserRepos(tokenData.access_token)
+    const matchedRepo = repos.find(
+      (repo) =>
+        repo.owner.login === savedRepoConfig.owner &&
+        repo.name === savedRepoConfig.repo,
+    )
+
+    if (matchedRepo) {
+      repoConfig = {
+        ...savedRepoConfig,
+        branch: savedRepoConfig.branch || matchedRepo.default_branch,
+      }
+    }
+  }
 
   await saveGithubSession({
     accessToken: tokenData.access_token,
@@ -61,7 +80,7 @@ export async function GET(request: NextRequest) {
       name: githubUser.name || githubUser.login,
       avatarUrl: githubUser.avatar_url,
     },
-    repoConfig: null,
+    repoConfig,
   })
 
   return NextResponse.redirect(new URL('/', getBaseUrl(request)))

@@ -5,9 +5,11 @@ import {
   randomBytes,
 } from 'node:crypto'
 import { cookies } from 'next/headers'
-
-export const GITHUB_SESSION_COOKIE = 'hugoweb_github_session'
-export const GITHUB_OAUTH_STATE_COOKIE = 'hugoweb_github_oauth_state'
+import {
+  GITHUB_REPO_CONFIG_COOKIE,
+  GITHUB_OAUTH_STATE_COOKIE,
+  GITHUB_SESSION_COOKIE,
+} from '@/lib/github-cookie'
 
 export type GithubRepoConfig = {
   owner: string
@@ -40,16 +42,16 @@ function getSessionKey() {
   return createHash('sha256').update(getSessionSecret()).digest()
 }
 
-function encodePayload(session: GithubSession) {
-  return Buffer.from(JSON.stringify(session), 'utf-8').toString('base64url')
+function encodePayload<T>(value: T) {
+  return Buffer.from(JSON.stringify(value), 'utf-8').toString('base64url')
 }
 
-function decodePayload(payload: string) {
-  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as GithubSession
+function decodePayload<T>(payload: string) {
+  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as T
 }
 
-function serializeSession(session: GithubSession) {
-  const payload = encodePayload(session)
+function serializeEncryptedValue<T>(value: T) {
+  const payload = encodePayload(value)
   const iv = randomBytes(12)
   const cipher = createCipheriv('aes-256-gcm', getSessionKey(), iv)
   const encrypted = Buffer.concat([cipher.update(payload, 'utf-8'), cipher.final()])
@@ -58,7 +60,7 @@ function serializeSession(session: GithubSession) {
   return [iv.toString('base64url'), encrypted.toString('base64url'), tag.toString('base64url')].join('.')
 }
 
-function deserializeSession(rawValue: string) {
+function deserializeEncryptedValue<T>(rawValue: string) {
   const [ivPart, encryptedPart, tagPart] = rawValue.split('.')
 
   if (!ivPart || !encryptedPart || !tagPart) {
@@ -78,7 +80,7 @@ function deserializeSession(rawValue: string) {
       decipher.final(),
     ]).toString('utf-8')
 
-    return decodePayload(decrypted)
+    return decodePayload<T>(decrypted)
   } catch {
     return null
   }
@@ -92,7 +94,7 @@ export async function getGithubSession() {
     return null
   }
 
-  return deserializeSession(rawValue)
+  return deserializeEncryptedValue<GithubSession>(rawValue)
 }
 
 export async function requireGithubSession() {
@@ -108,12 +110,35 @@ export async function requireGithubSession() {
 export async function saveGithubSession(session: GithubSession) {
   const cookieStore = await cookies()
 
-  cookieStore.set(GITHUB_SESSION_COOKIE, serializeSession(session), {
+  cookieStore.set(GITHUB_SESSION_COOKIE, serializeEncryptedValue(session), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
     maxAge: 60 * 60 * 24 * 30,
+  })
+}
+
+export async function getGithubRepoConfigPreference() {
+  const cookieStore = await cookies()
+  const rawValue = cookieStore.get(GITHUB_REPO_CONFIG_COOKIE)?.value
+
+  if (!rawValue) {
+    return null
+  }
+
+  return deserializeEncryptedValue<GithubRepoConfig>(rawValue)
+}
+
+export async function saveGithubRepoConfigPreference(repoConfig: GithubRepoConfig) {
+  const cookieStore = await cookies()
+
+  cookieStore.set(GITHUB_REPO_CONFIG_COOKIE, serializeEncryptedValue(repoConfig), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 180,
   })
 }
 

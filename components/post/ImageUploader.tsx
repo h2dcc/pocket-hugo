@@ -1,39 +1,64 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { createDraftAssetFromImage } from '@/lib/image'
-import { nextImageNameFromAssets } from '@/lib/naming'
+import {
+  ensureUniqueAssetName,
+  nextImageNameFromAssets,
+  sanitizeAssetName,
+} from '@/lib/naming'
+import type { SiteSettings } from '@/lib/site-settings'
 import type { DraftAsset } from '@/lib/types'
 
 type Props = {
   existingAssets: DraftAsset[]
+  settings: SiteSettings
   onUploaded: (asset: DraftAsset) => void
   onInsertMarkdown: (markdown: string) => void
 }
 
 export default function ImageUploader({
   existingAssets,
+  settings,
   onUploaded,
   onInsertMarkdown,
 }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const inputId = useId()
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     if (!file) return
-    console.log('existingAssets.length =', existingAssets.length)
 
     setError('')
     setUploading(true)
 
     try {
-      const assetName = nextImageNameFromAssets(existingAssets)
-      const asset = await createDraftAssetFromImage(file, assetName)
+      const autoName = settings.imageConversionEnabled
+        ? nextImageNameFromAssets(existingAssets)
+        : ensureUniqueAssetName(sanitizeAssetName(file.name), existingAssets)
+
+      const customName = ensureUniqueAssetName(
+        sanitizeAssetName(
+          settings.imageConversionEnabled
+            ? file.name.replace(/\.[^.]+$/i, '.webp')
+            : file.name,
+        ),
+        existingAssets,
+      )
+
+      const assetName = settings.autoImageNamingEnabled ? autoName : customName
+
+      const asset = await createDraftAssetFromImage(file, assetName, {
+        convertToWebp: settings.imageConversionEnabled,
+        maxWidth: settings.imageMaxWidth,
+        quality: settings.imageQuality,
+      })
 
       onUploaded(asset)
-      const altText = asset.name.replace(/\.webp$/i, '')
+      const altText = asset.name.replace(/\.[^.]+$/i, '')
       onInsertMarkdown(`![${altText}](${asset.name})`)
     } catch (err) {
       setError(err instanceof Error ? err.message : '图片处理失败')
@@ -47,17 +72,46 @@ export default function ImageUploader({
 
   return (
     <div style={{ display: 'grid', gap: 12 }}>
-      <div>
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          disabled={uploading}
-        />
-      </div>
+      <input
+        id={inputId}
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileChange}
+        disabled={uploading}
+        style={{ display: 'none' }}
+      />
 
-      {uploading ? <div>正在压缩并转换为 webp...</div> : null}
+      <label
+        htmlFor={inputId}
+        style={{
+          display: 'grid',
+          gap: 8,
+          padding: '16px 14px',
+          borderRadius: 16,
+          border: '1.5px dashed #9ca3af',
+          background: uploading ? '#f3f4f6' : '#fafafa',
+          cursor: uploading ? 'not-allowed' : 'pointer',
+          textAlign: 'center',
+        }}
+      >
+        <span style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>
+          {uploading ? '图片处理中...' : '点按选择图片'}
+        </span>
+        <span style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
+          支持手机直接点按上传。
+          <br />
+          {settings.imageConversionEnabled
+            ? '当前会按你的偏好压缩并转换图片。'
+            : '当前会保留原图格式上传。'}
+        </span>
+      </label>
+
+      {uploading ? (
+        <div>
+          {settings.imageConversionEnabled ? '正在压缩并转换图片...' : '正在读取原图...'}
+        </div>
+      ) : null}
       {error ? <div style={{ color: 'crimson' }}>{error}</div> : null}
     </div>
   )

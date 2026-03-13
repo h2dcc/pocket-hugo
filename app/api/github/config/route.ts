@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listUserRepos } from '@/lib/github-api'
 import {
+  saveGithubRepoConfigPreference,
   normalizePostsBasePath,
   requireGithubSession,
   saveGithubSession,
@@ -58,24 +59,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const repoConfig = {
+      owner,
+      repo,
+      branch,
+      postsBasePath,
+    }
+
     await saveGithubSession({
       ...session,
-      repoConfig: {
-        owner,
-        repo,
-        branch,
-        postsBasePath,
-      },
+      repoConfig,
     })
+    await saveGithubRepoConfigPreference(repoConfig)
 
     return NextResponse.json({
       ok: true,
-      repoConfig: {
-        owner,
-        repo,
-        branch,
-        postsBasePath,
-      },
+      repoConfig,
     })
   } catch (error) {
     return NextResponse.json(

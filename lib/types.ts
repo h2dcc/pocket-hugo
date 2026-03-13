@@ -6,6 +6,7 @@ export type Frontmatter = {
   categories: string[]
   tags: string[]
   image: string
+  customFields: CustomFrontmatterField[]
 }
 
 export type DraftAsset = {
@@ -20,4 +21,11 @@ export type PostDraft = {
   frontmatter: Frontmatter
   body: string
   assets: DraftAsset[]
+}
+
+export type CustomFrontmatterField = {
+  id: string
+  key: string
+  type: 'text' | 'list'
+  value: string
 }

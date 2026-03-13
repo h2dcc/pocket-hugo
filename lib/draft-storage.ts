@@ -1,3 +1,4 @@
+import { normalizeFrontmatter } from '@/lib/frontmatter'
 import type { PostDraft } from '@/lib/types'
 
 const DRAFT_PREFIX = 'draft:'
@@ -15,7 +16,11 @@ export function loadDraftFromStorage(folderName: string): PostDraft | null {
   if (!raw) return null
 
   try {
-    return JSON.parse(raw) as PostDraft
+    const parsed = JSON.parse(raw) as PostDraft
+    return {
+      ...parsed,
+      frontmatter: normalizeFrontmatter(parsed.frontmatter),
+    }
   } catch {
     return null
   }
@@ -43,7 +48,10 @@ export function listDraftsFromStorage(): PostDraft[] {
     }
   }
 
-  return drafts.sort((a, b) => {
+  return drafts.map((draft) => ({
+    ...draft,
+    frontmatter: normalizeFrontmatter(draft.frontmatter),
+  })).sort((a, b) => {
     const aDate = new Date(a.frontmatter.date || 0).getTime()
     const bDate = new Date(b.frontmatter.date || 0).getTime()
     return bDate - aDate

@@ -93,8 +93,10 @@ export async function getGithubUser(token: string) {
 }
 
 function buildContentsPath(path: string, context: RepoContext) {
-  const encodedPath = encodeURIComponent(path).replace(/%2F/g, '/')
-  return `/repos/${context.owner}/${context.repo}/contents/${encodedPath}?ref=${encodeURIComponent(context.branch)}`
+  const normalizedPath = path.trim().replace(/^\/+|\/+$/g, '')
+  const encodedPath = encodeURIComponent(normalizedPath).replace(/%2F/g, '/')
+  const suffix = encodedPath ? `/${encodedPath}` : ''
+  return `/repos/${context.owner}/${context.repo}/contents${suffix}?ref=${encodeURIComponent(context.branch)}`
 }
 
 export async function getGithubFileContent(path: string, token: string, context: RepoContext) {

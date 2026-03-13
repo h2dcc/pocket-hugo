@@ -1,4 +1,5 @@
 import { DEFAULT_MAX_IMAGE_WIDTH, DEFAULT_WEBP_QUALITY } from './constants'
+import { sanitizeAssetName } from './naming'
 import type { DraftAsset } from './types'
 
 function loadImage(file: File): Promise<HTMLImageElement> {
@@ -84,9 +85,9 @@ export function base64ToDataUrl(base64: string, mimeType: string): string {
   return `data:${mimeType};base64,${base64}`
 }
 
-export function restoreAssetPreviewUrls<T extends { contentBase64: string; mimeType: string; previewUrl: string }>(
-  assets: T[],
-): T[] {
+export function restoreAssetPreviewUrls<
+  T extends { contentBase64: string; mimeType: string; previewUrl: string },
+>(assets: T[]): T[] {
   return assets.map((asset) => ({
     ...asset,
     previewUrl: asset.contentBase64
@@ -98,13 +99,39 @@ export function restoreAssetPreviewUrls<T extends { contentBase64: string; mimeT
 export async function createDraftAssetFromImage(
   file: File,
   assetName: string,
+  options?: {
+    convertToWebp?: boolean
+    maxWidth?: number
+    quality?: number
+  },
 ): Promise<DraftAsset> {
-  const webpBlob = await compressImageToWebp(file)
+  const convertToWebp = options?.convertToWebp ?? true
+
+  if (!convertToWebp) {
+    const mimeType = file.type || 'application/octet-stream'
+    const contentBase64 = await blobToBase64(file)
+    const previewUrl = mimeType.startsWith('image/')
+      ? base64ToDataUrl(contentBase64, mimeType)
+      : ''
+
+    return {
+      name: sanitizeAssetName(assetName),
+      mimeType,
+      contentBase64,
+      previewUrl,
+    }
+  }
+
+  const webpBlob = await compressImageToWebp(
+    file,
+    options?.maxWidth ?? DEFAULT_MAX_IMAGE_WIDTH,
+    options?.quality ?? DEFAULT_WEBP_QUALITY,
+  )
   const contentBase64 = await blobToBase64(webpBlob)
   const previewUrl = base64ToDataUrl(contentBase64, 'image/webp')
 
   return {
-    name: assetName,
+    name: sanitizeAssetName(assetName.replace(/\.[^.]+$/i, '.webp')),
     mimeType: 'image/webp',
     contentBase64,
     previewUrl,

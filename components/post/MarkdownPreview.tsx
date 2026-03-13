@@ -12,7 +12,7 @@ export default function MarkdownPreview({ body, assets }: Props) {
   const assetMap = new Map(assets.map((asset) => [asset.name, asset]))
 
   return (
-    <div style={{ lineHeight: 1.7 }}>
+    <div className="markdown-preview">
       <ReactMarkdown
         components={{
           img: ({ src = '', alt = '' }) => {
@@ -25,10 +25,9 @@ export default function MarkdownPreview({ body, assets }: Props) {
                 src={finalSrc}
                 alt={alt}
                 style={{
-                  maxWidth: '100%',
-                  height: 'auto',
                   borderRadius: 8,
                   margin: '12px 0',
+                  width: '100%',
                 }}
               />
             )

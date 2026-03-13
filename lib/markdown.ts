@@ -7,7 +7,27 @@ function renderYamlList(items: string[]) {
   return items.map((item) => ` - ${item}`).join('\n')
 }
 
+function renderCustomFields(frontmatter: Frontmatter) {
+  return frontmatter.customFields
+    .filter((field) => field.key.trim())
+    .map((field) => {
+      if (field.type === 'list') {
+        const items = field.value
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean)
+
+        return `${field.key.trim()}:\n${renderYamlList(items)}`
+      }
+
+      return `${field.key.trim()}: ${JSON.stringify(field.value)}`
+    })
+    .join('\n')
+}
+
 export function renderIndexMd(frontmatter: Frontmatter, body: string) {
+  const customFields = renderCustomFields(frontmatter)
+
   return `---
 description: ${JSON.stringify(frontmatter.description)}
 title: ${JSON.stringify(frontmatter.title)}
@@ -18,7 +38,7 @@ ${renderYamlList(frontmatter.categories)}
 tags:
 ${renderYamlList(frontmatter.tags)}
 image: ${JSON.stringify(frontmatter.image)}
----
+${customFields ? `${customFields}\n` : ''}---
 
 ${body}`
 }
