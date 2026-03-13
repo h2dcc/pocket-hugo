@@ -1,11 +1,12 @@
 'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import { useLanguage } from '@/lib/use-language'
 
-export default function PagePublishResultPage() {
+function PagePublishResultContent() {
   const { isEnglish } = useLanguage()
   const searchParams = useSearchParams()
 
@@ -51,17 +52,7 @@ export default function PagePublishResultPage() {
   }
 
   return (
-    <main
-      style={{
-        padding: 16,
-        maxWidth: 1080,
-        margin: '0 auto',
-        display: 'grid',
-        gap: 16,
-      }}
-    >
-      <SiteHeader />
-
+    <>
       <section style={{ ...cardStyle, display: 'grid', gap: 8 }}>
         <h1 style={{ margin: 0, fontSize: 28 }}>
           {isEnglish ? 'Page Published Successfully' : '页面发布成功'}
@@ -69,7 +60,7 @@ export default function PagePublishResultPage() {
         <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.7 }}>
           {isEnglish
             ? 'Your standalone page or quick timeline file has been written to GitHub.'
-            : '你的独立页面或生活记录页面已经成功写入 GitHub。'}
+            : '你的独立页面或生活记录页面文件已经成功写入 GitHub。'}
         </p>
       </section>
 
@@ -101,7 +92,7 @@ export default function PagePublishResultPage() {
           </div>
           {fileChanges.length ? (
             <div style={{ display: 'grid', gap: 8 }}>
-              <strong>{isEnglish ? 'Files changed in this publish:' : '本次写入（编辑）的文件：'}</strong>
+              <strong>{isEnglish ? 'Files changed in this publish:' : '本次写入的文件：'}</strong>
               <div
                 style={{
                   display: 'grid',
@@ -157,7 +148,7 @@ export default function PagePublishResultPage() {
         <div style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>
           {isEnglish
             ? 'You can jump back into this workflow anytime from the Page Editor button on the home page.'
-            : '后续如需继续编辑这个页面，可以随时回到首页，通过“页面编辑”按钮再次进入。'}
+            : '后续如果还要继续编辑这个页面，可以随时回到首页，通过“页面编辑”按钮重新进入。'}
         </div>
         <div
           style={{
@@ -187,7 +178,25 @@ export default function PagePublishResultPage() {
           ) : null}
         </div>
       </section>
+    </>
+  )
+}
 
+export default function PagePublishResultPage() {
+  return (
+    <main
+      style={{
+        padding: 16,
+        maxWidth: 1080,
+        margin: '0 auto',
+        display: 'grid',
+        gap: 16,
+      }}
+    >
+      <SiteHeader />
+      <Suspense fallback={null}>
+        <PagePublishResultContent />
+      </Suspense>
       <SiteFooter />
     </main>
   )

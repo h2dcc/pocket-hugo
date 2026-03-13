@@ -1,11 +1,12 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import { useLanguage } from '@/lib/use-language'
 
-export default function PublishResultPage() {
+function PublishResultContent() {
   const { isEnglish } = useLanguage()
   const params = useParams<{ folderName: string }>()
   const searchParams = useSearchParams()
@@ -53,17 +54,7 @@ export default function PublishResultPage() {
   }
 
   return (
-    <main
-      style={{
-        padding: 16,
-        maxWidth: 1080,
-        margin: '0 auto',
-        display: 'grid',
-        gap: 16,
-      }}
-    >
-      <SiteHeader />
-
+    <>
       <section
         style={{
           border: '1px solid var(--border)',
@@ -207,7 +198,25 @@ export default function PublishResultPage() {
           ) : null}
         </div>
       </section>
+    </>
+  )
+}
 
+export default function PublishResultPage() {
+  return (
+    <main
+      style={{
+        padding: 16,
+        maxWidth: 1080,
+        margin: '0 auto',
+        display: 'grid',
+        gap: 16,
+      }}
+    >
+      <SiteHeader />
+      <Suspense fallback={null}>
+        <PublishResultContent />
+      </Suspense>
       <SiteFooter />
     </main>
   )
