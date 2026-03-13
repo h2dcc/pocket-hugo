@@ -104,7 +104,7 @@ export function SiteFooter() {
       <div>© 2026 All rights reserved.</div>
       <div>
         <a
-          href="https://github.com/oldte/pocket-hugo"
+          href="https://github.com/h2dcc/pocket-hugo"
           target="_blank"
           rel="noreferrer"
           aria-label={isEnglish ? 'GitHub project repository' : 'GitHub 项目仓库'}

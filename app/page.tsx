@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import DraftList from '@/components/post/DraftList'
 import LanguageToggle from '@/components/language/LanguageToggle'
@@ -52,6 +52,68 @@ type GithubDirectoryItem = {
   path: string
 }
 
+type SearchParamsEffectsProps = {
+  isEnglish: boolean
+  onAuthError: (message: string) => void
+  onShowAuthPanel: () => void
+}
+
+function SearchParamsEffects({
+  isEnglish,
+  onAuthError,
+  onShowAuthPanel,
+}: SearchParamsEffectsProps) {
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (!error) return
+
+    onShowAuthPanel()
+
+    if (error === 'github_oauth_state') {
+      onAuthError(
+        isEnglish
+          ? 'GitHub sign-in verification failed. Please try again.'
+          : 'GitHub 登录校验失败，请重新登录。',
+      )
+      return
+    }
+
+    if (error === 'github_oauth_config') {
+      onAuthError(
+        isEnglish
+          ? 'GitHub OAuth is not configured on the server.'
+          : '服务端缺少 GitHub OAuth 配置。',
+      )
+      return
+    }
+
+    onAuthError(
+      isEnglish ? `GitHub sign-in failed: ${error}` : `GitHub 登录失败：${error}`,
+    )
+  }, [isEnglish, onAuthError, onShowAuthPanel, searchParams])
+
+  useEffect(() => {
+    const auth = searchParams.get('auth')
+    const from = searchParams.get('from')
+    if (auth !== 'required') return
+
+    onAuthError(
+      from
+        ? isEnglish
+          ? `Please sign in with GitHub before visiting ${from}.`
+          : `请先登录 GitHub 后再访问 ${from}`
+        : isEnglish
+          ? 'Please sign in with GitHub first.'
+          : '请先登录 GitHub 后再继续操作。',
+    )
+    onShowAuthPanel()
+  }, [isEnglish, onAuthError, onShowAuthPanel, searchParams])
+
+  return null
+}
+
 function RepoIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -96,7 +158,6 @@ function PageIcon() {
 export default function HomePage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const pageConfigCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [drafts, setDrafts] = useState<PostDraft[]>([])
   const [authLoading, setAuthLoading] = useState(true)
@@ -290,42 +351,6 @@ export default function HomePage() {
 
     fetchRepos()
   }, [session.authenticated, selectedRepoFullName])
-
-  useEffect(() => {
-    const error = searchParams.get('error')
-    if (!error) return
-
-    setVisiblePanel('auth')
-
-    if (error === 'github_oauth_state') {
-      setAuthError(isEnglish ? 'GitHub sign-in verification failed. Please try again.' : 'GitHub 登录校验失败，请重新登录。')
-      return
-    }
-
-    if (error === 'github_oauth_config') {
-      setAuthError(isEnglish ? 'GitHub OAuth is not configured on the server.' : '服务端缺少 GitHub OAuth 配置。')
-      return
-    }
-
-    setAuthError(isEnglish ? `GitHub sign-in failed: ${error}` : `GitHub 登录失败：${error}`)
-  }, [searchParams])
-
-  useEffect(() => {
-    const auth = searchParams.get('auth')
-    const from = searchParams.get('from')
-    if (auth !== 'required') return
-
-    setAuthError(
-      from
-        ? isEnglish
-          ? `Please sign in with GitHub before visiting ${from}.`
-          : `请先登录 GitHub 后再访问 ${from}`
-        : isEnglish
-          ? 'Please sign in with GitHub first.'
-          : '请先登录 GitHub 后再继续操作。',
-    )
-    setVisiblePanel('auth')
-  }, [searchParams])
 
   useEffect(() => {
     if (!selectedRepoFullName) return
@@ -672,6 +697,13 @@ export default function HomePage() {
         gap: 16,
       }}
     >
+      <Suspense fallback={null}>
+        <SearchParamsEffects
+          isEnglish={isEnglish}
+          onAuthError={setAuthError}
+          onShowAuthPanel={() => setVisiblePanel('auth')}
+        />
+      </Suspense>
       <SiteHeader />
 
       <section

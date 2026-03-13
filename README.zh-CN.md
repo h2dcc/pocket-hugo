@@ -100,9 +100,24 @@ Hugo 这种 page bundle 结构的优点非常明显：
 
 ## 本地开发
 
+推荐 Node.js 版本：
+
+```text
+22 LTS
+```
+
+这个项目使用 Next.js 16。虽然框架最低要求是 Node.js 20.9+，但在本地 Windows 开发环境中，更推荐使用 Node 22 LTS，避免较新的 Node 版本触发原生模块加载问题。
+
 安装依赖：
 
 ```bash
+npm install
+```
+
+如果你之前是在其他 Node 版本下安装过依赖，切换 Node 版本后请先删除本地依赖再重新安装：
+
+```bash
+Remove-Item node_modules,.next,package-lock.json -Recurse -Force
 npm install
 ```
 

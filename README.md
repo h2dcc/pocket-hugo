@@ -100,9 +100,24 @@ For a mobile publishing workflow, this matters even more: the less manual file o
 
 ## Local Development
 
+Recommended Node.js version:
+
+```text
+22 LTS
+```
+
+This project uses Next.js 16. While the framework requires Node.js 20.9+, in practice we recommend using Node 22 LTS for local development to avoid Windows native module issues with newer Node releases.
+
 Install dependencies:
 
 ```bash
+npm install
+```
+
+If you already installed dependencies with a different Node version, remove the local install and reinstall after switching Node:
+
+```bash
+Remove-Item node_modules,.next,package-lock.json -Recurse -Force
 npm install
 ```
 
@@ -120,6 +135,8 @@ Start the dev server:
 ```bash
 npm run dev
 ```
+
+The development script uses `next dev --webpack` intentionally, and the production build uses `next build --webpack` for the same reason. On some Windows environments, Next.js native SWC bindings may fail to load and Turbopack cannot continue with the WASM fallback, while the webpack pipeline still works normally.
 
 Open:
 

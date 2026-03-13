@@ -7,7 +7,7 @@ function isAuthenticated(request: NextRequest) {
   return Boolean(request.cookies.get(GITHUB_SESSION_COOKIE)?.value)
 }
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   if (isAuthenticated(request)) {
     return NextResponse.next()
   }
