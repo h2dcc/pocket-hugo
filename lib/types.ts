@@ -21,6 +21,7 @@ export type PostDraft = {
   frontmatter: Frontmatter
   body: string
   assets: DraftAsset[]
+  remoteAssetNames?: string[]
 }
 
 export type CustomFrontmatterField = {

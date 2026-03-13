@@ -46,6 +46,27 @@ type GithubErrorPayload = {
   message?: string
 }
 
+type GithubRefResponse = {
+  object: {
+    sha: string
+  }
+}
+
+type GithubCommitResponse = {
+  sha: string
+  tree: {
+    sha: string
+  }
+}
+
+type GithubBlobResponse = {
+  sha: string
+}
+
+type GithubTreeResponse = {
+  sha: string
+}
+
 function buildHeaders(token: string, init?: HeadersInit): HeadersInit {
   return {
     Authorization: `Bearer ${token}`,
@@ -152,4 +173,161 @@ export async function putGithubFile(input: {
       }),
     },
   )
+}
+
+async function getBranchHeadSha(token: string, context: RepoContext) {
+  const ref = await githubRequest<GithubRefResponse>(
+    `/repos/${context.owner}/${context.repo}/git/ref/heads/${encodeURIComponent(context.branch)}`,
+    token,
+  )
+
+  return ref.object.sha
+}
+
+async function getCommit(token: string, context: RepoContext, sha: string) {
+  return githubRequest<GithubCommitResponse>(
+    `/repos/${context.owner}/${context.repo}/git/commits/${sha}`,
+    token,
+  )
+}
+
+async function createBlob(token: string, context: RepoContext, contentBase64: string) {
+  return githubRequest<GithubBlobResponse>(
+    `/repos/${context.owner}/${context.repo}/git/blobs`,
+    token,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: contentBase64,
+        encoding: 'base64',
+      }),
+    },
+  )
+}
+
+async function createTree(
+  token: string,
+  context: RepoContext,
+  baseTreeSha: string,
+  tree: Array<{ path: string; sha: string | null }>,
+) {
+  return githubRequest<GithubTreeResponse>(
+    `/repos/${context.owner}/${context.repo}/git/trees`,
+    token,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        base_tree: baseTreeSha,
+        tree: tree.map((item) =>
+          item.sha === null
+            ? {
+                path: item.path,
+                mode: '100644',
+                type: 'blob',
+                sha: null,
+              }
+            : {
+                path: item.path,
+                mode: '100644',
+                type: 'blob',
+                sha: item.sha,
+              },
+        ),
+      }),
+    },
+  )
+}
+
+async function createCommit(
+  token: string,
+  context: RepoContext,
+  message: string,
+  treeSha: string,
+  parentSha: string,
+) {
+  return githubRequest<GithubCommitResponse>(
+    `/repos/${context.owner}/${context.repo}/git/commits`,
+    token,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        tree: treeSha,
+        parents: [parentSha],
+      }),
+    },
+  )
+}
+
+async function updateBranchHead(
+  token: string,
+  context: RepoContext,
+  commitSha: string,
+) {
+  return githubRequest<{ object: { sha: string } }>(
+    `/repos/${context.owner}/${context.repo}/git/refs/heads/${encodeURIComponent(context.branch)}`,
+    token,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        sha: commitSha,
+        force: false,
+      }),
+    },
+  )
+}
+
+export async function commitGithubFiles(input: {
+  files: Array<{
+    path: string
+    contentBase64: string
+  }>
+  deletePaths?: string[]
+  message: string
+  token: string
+  context: RepoContext
+}) {
+  const headSha = await getBranchHeadSha(input.token, input.context)
+  const headCommit = await getCommit(input.token, input.context, headSha)
+
+  const blobs = await Promise.all(
+    input.files.map(async (file) => ({
+      path: file.path,
+      sha: (await createBlob(input.token, input.context, file.contentBase64)).sha,
+    })),
+  )
+  const deletions = (input.deletePaths || []).map((path) => ({ path, sha: null as null }))
+
+  const tree = await createTree(
+    input.token,
+    input.context,
+    headCommit.tree.sha,
+    [...blobs, ...deletions],
+  )
+  const commit = await createCommit(
+    input.token,
+    input.context,
+    input.message,
+    tree.sha,
+    headSha,
+  )
+
+  await updateBranchHead(input.token, input.context, commit.sha)
+
+  return {
+    sha: commit.sha,
+    files: input.files.length,
+  }
 }

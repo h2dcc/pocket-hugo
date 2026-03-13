@@ -20,5 +20,6 @@ export function createEmptyDraft(folderName: string, slug: string, date: string)
     frontmatter: createDefaultFrontmatter(slug, date),
     body: '',
     assets: [],
+    remoteAssetNames: [],
   }
 }

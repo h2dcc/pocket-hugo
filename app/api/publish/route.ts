@@ -25,20 +25,30 @@ export async function POST(request: NextRequest) {
 
     const indexMd = renderIndexMd(draft.frontmatter, draft.body)
     const indexMdBase64 = stringToBase64(indexMd)
+    const changedAssets = draft.assets.filter(
+      (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,
+    )
+    const removedAssetNames = (draft.remoteAssetNames || []).filter(
+      (name) => !draft.assets.some((asset) => asset.name === name),
+    )
 
     const result = await publishPostToGithub({
       folderName: draft.folderName,
       indexMdBase64,
-      assets: draft.assets.map((asset) => ({
+      assets: changedAssets.map((asset) => ({
         name: asset.name,
         contentBase64: asset.contentBase64,
       })),
+      removedAssetNames,
     })
 
     return NextResponse.json({
       ok: true,
       path: result.path,
-      commitCount: result.commits.length,
+      commitCount: result.commitCount,
+      fileCount: result.fileCount,
+      fileChanges: result.fileChanges,
+      commitSha: result.commitSha,
       repo: result.repo,
       branch: result.branch,
     })

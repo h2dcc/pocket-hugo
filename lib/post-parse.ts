@@ -52,5 +52,6 @@ export function parseIndexMdToDraft(folderName: string, content: string): PostDr
     frontmatter,
     body: parsed.content.trim(),
     assets: [],
+    remoteAssetNames: [],
   }
 }

@@ -1,56 +1,250 @@
-# hugoweb
+# PocketHugo
 
-面向手机优先的 Hugo 文章发布工具，支持：
+[中文文档](./README.zh-CN.md)
 
-- 创建和编辑 Hugo page bundle 文章
-- 上传图片，并在上传过程中压缩、裁剪
-- 从 GitHub 仓库读取已发布文章继续编辑
-- 通过 GitHub OAuth 登录后，在线发布到你选择的 Hugo 仓库文章目录
+PocketHugo is a mobile-friendly editor and publishing workflow for Hugo sites that store content in GitHub.
 
-## 本地开发
+It is designed for people who want to:
+
+- write or update Hugo posts from a phone or browser
+- keep Hugo page bundle structure intact
+- upload images with compression and format conversion
+- continue editing already-published posts from GitHub
+- publish directly back to a selected Hugo repository
+
+## What It Does
+
+PocketHugo combines a lightweight Markdown editor, image workflow, and GitHub publishing flow into one app.
+
+Core capabilities:
+
+- GitHub sign-in on the home page
+- choose a target repository, branch, and Hugo posts directory
+- create local drafts and continue editing later
+- load published posts from GitHub and edit them again
+- upload images with optional compression, resizing, and WebP conversion
+- set cover image, insert images into Markdown, and delete images
+- batch-publish `index.md` and changed assets in a single Git commit
+- delete removed remote images when republishing a previously published post
+- light/dark mode and English/Chinese interface switching
+
+## Why This Project Exists
+
+Hugo is great for static sites, but editing and publishing from a phone is usually awkward.
+
+Common pain points:
+
+- GitHub web editing is not comfortable for longer Markdown writing
+- Hugo page bundles are easy to break when using generic CMS tools
+- images often become the most annoying part of the workflow
+- small content updates still require too much manual Git work
+
+PocketHugo keeps Hugo's native content structure, but makes the day-to-day writing and publishing flow much easier.
+
+## Content Model
+
+PocketHugo is built around Hugo page bundles.
+
+Typical result:
+
+```text
+content/posts/2026-03-13-my-post/
+  index.md
+  1.webp
+  cover.webp
+```
+
+The detailed structure comparison and the practical benefits are explained in the next section.
+
+## Why Page Bundles Work Better
+
+PocketHugo is intentionally built around Hugo's native page bundle structure instead of the more common "article files here, images somewhere else" pattern.
+
+Hugo page bundle:
+
+```text
+content/posts/2026-03-13-my-post/
+  index.md
+  cover.webp
+  1.webp
+  2.webp
+```
+
+A more common separated structure:
+
+```text
+content/posts/2026-03-13-my-post.md
+static/uploads/2026/03/cover.webp
+static/uploads/2026/03/1.webp
+static/uploads/2026/03/2.webp
+```
+
+Why the Hugo page bundle model is better:
+
+- the article and its images live together in one folder
+- moving, copying, renaming, or deleting a post is much safer
+- it is easier to understand which images belong to which article
+- image references stay local and predictable
+- repository history is easier to inspect because one post usually maps to one folder
+- it matches how Hugo already wants page resources to work
+
+For a mobile publishing workflow, this matters even more: the less manual file organization you need to do, the less likely you are to break paths, lose images, or publish to the wrong place.
+
+## Tech Stack
+
+- Next.js App Router
+- React
+- TypeScript
+- GitHub OAuth
+- GitHub Contents / Git Trees APIs
+
+## Local Development
+
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Create `.env.local`:
+
+```env
+APP_URL=http://localhost:3000
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+```
+
+Start the dev server:
+
+```bash
 npm run dev
 ```
 
-打开 `http://localhost:3000` 即可。
+Open:
 
-## 在线部署所需环境变量
-
-在线版新增了 GitHub OAuth 登录和“每个用户自选仓库/文章路径”能力，部署时至少需要这些环境变量：
-
-```bash
-APP_URL=https://your-domain.example
-APP_SESSION_SECRET=replace-with-a-long-random-secret
-GITHUB_CLIENT_ID=your-github-oauth-app-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-app-client-secret
+```text
+http://localhost:3000
 ```
 
-## GitHub OAuth App 配置
+## GitHub OAuth Setup
 
-在 GitHub 创建 OAuth App 时，建议这样设置：
+Create a GitHub OAuth App and configure:
 
-- Homepage URL: `https://your-domain.example`
-- Authorization callback URL: `https://your-domain.example/api/auth/callback`
+- Homepage URL: `http://localhost:3000` for local testing
+- Authorization callback URL: `http://localhost:3000/api/auth/callback` for local testing
 
-登录时会请求：
+For production, change those to your deployed domain.
 
-- `repo`
-- `read:user`
+The app currently expects:
 
-这样用户登录后即可选择自己有写权限的仓库，并填写 Hugo 文章目录，例如 `content/posts`。
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
+- `APP_URL`
+- `APP_SESSION_SECRET`
 
-## 使用流程
+## Vercel Deployment
 
-1. 首页点击“使用 GitHub 登录”。
-2. 选择目标 Hugo 仓库。
-3. 填写文章目录路径，例如 `content/posts`。
-4. 保存配置后，继续新建文章，或加载远程已发布文章。
-5. 编辑完成后直接发布到所选仓库与路径。
+PocketHugo can be deployed directly to Vercel.
 
-## 说明
+### One-click install
 
-- 本地草稿依然保存在浏览器本地存储中。
-- 远程文章列表会根据当前保存的仓库和文章目录动态加载。
-- 发布、读取、加载文章都基于当前登录用户的 GitHub 访问令牌执行。
+```text
+Add your Vercel one-click deploy link here
+```
+
+### Required environment variables
+
+After importing the project into Vercel, add these variables in Project Settings -> Environment Variables:
+
+```env
+APP_URL=https://your-production-domain.vercel.app
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+```
+
+### GitHub OAuth callback URL
+
+After Vercel gives you a production URL, update the OAuth app callback to:
+
+```text
+https://your-production-domain.vercel.app/api/auth/callback
+```
+
+### Recommended checks after deployment
+
+Recommended production checks:
+
+- GitHub sign-in works
+- repository list loads
+- branch and posts directory can be saved
+- creating a draft works
+- republishing a post updates only the intended files
+- deleting a remote image removes it from GitHub on republish
+
+## Publishing Behavior
+
+When publishing:
+
+- `index.md` is always regenerated from the editor state
+- newly uploaded or changed assets are included in the same Git commit
+- untouched remote images are not overwritten
+- removed remote images are deleted from the repository when republishing
+
+## UI Features
+
+- mobile-first page layout
+- collapsible settings and editor panels
+- simple Markdown toolbar
+- Markdown preview
+- publish confirmation
+- publish result page with changed file list
+
+## Project Structure
+
+Main areas:
+
+- [`app/`](/d:/Hugo/hugoweb/app) - routes, API endpoints, metadata
+- [`components/`](/d:/Hugo/hugoweb/components) - UI components
+- [`lib/`](/d:/Hugo/hugoweb/lib) - GitHub, storage, markdown, image, session logic
+
+## Notes
+
+- drafts are stored in browser local storage
+- repository settings are restored from cookies after sign-in
+- current production flow is optimized for one selected target Hugo repository at a time
+- preview deployments are useful for UI checks, but GitHub OAuth is most reliable on the final production domain because callback URLs are fixed
+
+## Security & Privacy
+
+PocketHugo is designed to keep user data on the user's side as much as possible, instead of storing it in a separate online application database.
+
+In practice, this means:
+
+- draft content stays in the user's browser
+- language, theme, and publishing preferences stay in the user's browser
+- sign-in session and repository preference are stored as encrypted browser cookies
+- the backend does not keep a user database for article content, profiles, or GitHub tokens
+
+Security characteristics of the current implementation:
+
+- GitHub OAuth uses a state parameter to prevent login CSRF
+- session cookies are encrypted and authenticated before being stored
+- session cookies are marked `HttpOnly`
+- cookies use `SameSite=Lax`
+- cookies use `Secure` in production
+- protected editor routes require a valid sign-in session
+- GitHub access is performed server-side, not from the browser directly
+- the app adds baseline browser security headers such as `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy`
+
+Recommended operational practices:
+
+- use a strong `APP_SESSION_SECRET`
+- rotate `GITHUB_CLIENT_SECRET` immediately if it is ever exposed
+- use the production Vercel domain for the final OAuth callback URL
+- do not commit `.env.local`
+
+## License
+
+MIT

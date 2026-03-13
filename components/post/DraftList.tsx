@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useLanguage } from '@/lib/use-language'
 import type { PostDraft } from '@/lib/types'
 
 type Props = {
@@ -24,8 +25,10 @@ const actionButtonStyle: React.CSSProperties = {
 }
 
 export default function DraftList({ drafts, onDelete }: Props) {
+  const { isEnglish } = useLanguage()
+
   if (!drafts.length) {
-    return <p style={{ color: 'var(--muted)' }}>暂无本地草稿。</p>
+    return <p style={{ color: 'var(--muted)' }}>{isEnglish ? 'No local drafts yet.' : '暂无本地草稿。'}</p>
   }
 
   return (
@@ -43,16 +46,16 @@ export default function DraftList({ drafts, onDelete }: Props) {
           }}
         >
           <div style={{ fontWeight: 600 }}>
-            {draft.frontmatter.title || '(未命名文章)'}
+            {draft.frontmatter.title || (isEnglish ? '(Untitled article)' : '（未命名文章）')}
           </div>
-
           <div style={{ color: 'var(--muted)', wordBreak: 'break-all' }}>{draft.folderName}</div>
-
-          <div style={{ color: 'var(--muted)' }}>{draft.frontmatter.date || '无日期'}</div>
+          <div style={{ color: 'var(--muted)' }}>
+            {draft.frontmatter.date || (isEnglish ? 'No date' : '无日期')}
+          </div>
 
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <Link href={`/editor/${draft.folderName}`} style={actionButtonStyle}>
-              继续编辑
+              {isEnglish ? 'Continue Editing' : '继续编辑'}
             </Link>
 
             <button
@@ -64,7 +67,7 @@ export default function DraftList({ drafts, onDelete }: Props) {
                 color: '#ef4444',
               }}
             >
-              删除草稿
+              {isEnglish ? 'Delete Draft' : '删除草稿'}
             </button>
           </div>
         </div>

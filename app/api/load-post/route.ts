@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       draft: {
         ...draft,
         assets: remoteAssets,
+        remoteAssetNames: remoteAssets.map((asset) => asset.name),
       },
       repo: `${repoConfig.owner}/${repoConfig.repo}`,
       branch: repoConfig.branch,

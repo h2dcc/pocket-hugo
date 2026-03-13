@@ -8,6 +8,7 @@ import {
   sanitizeAssetName,
 } from '@/lib/naming'
 import type { SiteSettings } from '@/lib/site-settings'
+import { useLanguage } from '@/lib/use-language'
 import type { DraftAsset } from '@/lib/types'
 
 type Props = {
@@ -23,6 +24,7 @@ export default function ImageUploader({
   onUploaded,
   onInsertMarkdown,
 }: Props) {
+  const { isEnglish } = useLanguage()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const inputId = useId()
   const [uploading, setUploading] = useState(false)
@@ -61,7 +63,7 @@ export default function ImageUploader({
       const altText = asset.name.replace(/\.[^.]+$/i, '')
       onInsertMarkdown(`![${altText}](${asset.name})`)
     } catch (err) {
-      setError(err instanceof Error ? err.message : '图片处理失败')
+      setError(err instanceof Error ? err.message : isEnglish ? 'Image processing failed.' : '图片处理失败')
     } finally {
       setUploading(false)
       if (inputRef.current) {
@@ -89,30 +91,46 @@ export default function ImageUploader({
           gap: 8,
           padding: '16px 14px',
           borderRadius: 16,
-          border: '1.5px dashed #9ca3af',
-          background: uploading ? '#f3f4f6' : '#fafafa',
+          border: '1.5px dashed var(--border)',
+          background: uploading ? 'var(--card)' : 'var(--card-muted)',
           cursor: uploading ? 'not-allowed' : 'pointer',
           textAlign: 'center',
         }}
       >
-        <span style={{ fontSize: 16, fontWeight: 700, color: '#111' }}>
-          {uploading ? '图片处理中...' : '点按选择图片'}
+        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--foreground)' }}>
+          {uploading
+            ? isEnglish
+              ? 'Processing image...'
+              : '图片处理中...'
+            : isEnglish
+              ? 'Tap to Choose an Image'
+              : '点按选择图片'}
         </span>
-        <span style={{ fontSize: 13, color: '#666', lineHeight: 1.6 }}>
-          支持手机直接点按上传。
+        <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+          {isEnglish ? 'Designed for easy mobile uploads.' : '支持手机直接点按上传。'}
           <br />
           {settings.imageConversionEnabled
-            ? '当前会按你的偏好压缩并转换图片。'
-            : '当前会保留原图格式上传。'}
+            ? isEnglish
+              ? 'Images will follow your current conversion settings.'
+              : '当前会按你的偏好压缩并转换图片。'
+            : isEnglish
+              ? 'Images will keep their original format when uploaded.'
+              : '当前会保留原图格式上传。'}
         </span>
       </label>
 
       {uploading ? (
-        <div>
-          {settings.imageConversionEnabled ? '正在压缩并转换图片...' : '正在读取原图...'}
+        <div style={{ color: 'var(--muted)' }}>
+          {settings.imageConversionEnabled
+            ? isEnglish
+              ? 'Compressing and converting image...'
+              : '正在压缩并转换图片...'
+            : isEnglish
+              ? 'Reading original image...'
+              : '正在读取原图...'}
         </div>
       ) : null}
-      {error ? <div style={{ color: 'crimson' }}>{error}</div> : null}
+      {error ? <div style={{ color: 'var(--danger)' }}>{error}</div> : null}
     </div>
   )
 }
