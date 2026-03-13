@@ -75,26 +75,43 @@ export function createEmptyPageDraft(filePath: string, mode: PageEditorMode): Pa
 }
 
 function extractFrontmatter(rawContent: string) {
-  const normalized = rawContent.replace(/^\uFEFF/, '')
+  const normalized = rawContent.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n')
 
   for (const fence of ['---', '+++'] as const) {
     if (!normalized.startsWith(`${fence}\n`) && normalized !== fence) {
       continue
     }
 
-    const closingToken = `\n${fence}`
-    const closingIndex = normalized.indexOf(closingToken, fence.length + 1)
+    const lines = normalized.split('\n')
+    const frontmatterLines: string[] = []
+    let closingLineIndex = -1
 
-    if (closingIndex === -1) {
+    for (let index = 1; index < lines.length; index += 1) {
+      const line = lines[index].trim()
+
+      if (line === fence) {
+        if (frontmatterLines.length === 0) {
+          continue
+        }
+        closingLineIndex = index
+        break
+      }
+
+      frontmatterLines.push(lines[index])
+    }
+
+    if (closingLineIndex === -1) {
       break
     }
 
-    const frontmatterRaw = normalized
-      .slice(fence.length + 1, closingIndex)
-      .replace(/\r\n/g, '\n')
-      .trim()
-    const rest = normalized.slice(closingIndex + closingToken.length)
-    const body = rest.replace(/^\s*\n/, '').trim()
+    const frontmatterRaw = frontmatterLines.join('\n').trim()
+    const bodyLines = lines.slice(closingLineIndex + 1)
+
+    while (bodyLines[0]?.trim() === fence) {
+      bodyLines.shift()
+    }
+
+    const body = bodyLines.join('\n').trim()
 
     return { frontmatterFence: fence, frontmatterRaw, body }
   }
@@ -104,6 +121,19 @@ function extractFrontmatter(rawContent: string) {
     frontmatterRaw: '',
     body: normalized.trim(),
   }
+}
+
+function sanitizeFrontmatterRaw(frontmatterRaw: string, fence: '---' | '+++') {
+  return frontmatterRaw
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n/g, '\n')
+    .replace(new RegExp(`^(?:${escapeRegExp(fence)}\\s*\\n)+`), '')
+    .replace(new RegExp(`(?:\\n${escapeRegExp(fence)}\\s*)+$`), '')
+    .trim()
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
 export function parsePageFileContent(
@@ -184,8 +214,8 @@ export function renderLiveEntries(entries: QuickEntry[]) {
 
 export function renderPageFile(draft: PageDraft) {
   const body = draft.mode === 'live' ? renderLiveEntries(draft.entries) : draft.body.trim()
-  const frontmatter = draft.frontmatterRaw.trim()
   const fence = draft.frontmatterFence || '---'
+  const frontmatter = sanitizeFrontmatterRaw(draft.frontmatterRaw, fence)
 
   if (!frontmatter) {
     return `${body}\n`

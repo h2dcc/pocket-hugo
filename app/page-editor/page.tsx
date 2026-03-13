@@ -491,6 +491,11 @@ export default function PageEditorPage() {
 
           <section style={card}>
             <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Frontmatter' : 'Frontmatter 设置'}</h2>
+            <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.7, color: 'var(--muted)' }}>
+              {isEnglish
+                ? 'Only edit the fields here. Do not type the wrapping --- or +++ lines manually.'
+                : '这里只需要填写字段内容，不要手动输入外层的 --- 或 +++ 横杠。'}
+            </div>
             <textarea value={draft.frontmatterRaw} onChange={(event) => updateDraft((current) => ({ ...current, frontmatterRaw: event.target.value }))} rows={8} style={{ ...input, marginTop: 14, minHeight: 180, resize: 'vertical', lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
           </section>
         </div>
