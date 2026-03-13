@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { renderIndexMd } from '@/lib/markdown'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
@@ -157,7 +157,7 @@ export default function EditorPage() {
 
       removeDraftFromStorage(draft.folderName)
       router.push(
-        `/publish/${draft.folderName}?path=${encodeURIComponent(result.path)}&count=${result.commitCount}`,
+        `/publish/${draft.folderName}?path=${encodeURIComponent(result.path)}&count=${result.commitCount}&repo=${encodeURIComponent(result.repo || '')}&branch=${encodeURIComponent(result.branch || '')}`,
       )
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : '发布失败')

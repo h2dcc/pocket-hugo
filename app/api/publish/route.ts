@@ -4,10 +4,10 @@ import { publishPostToGithub } from '@/lib/github'
 import type { PostDraft } from '@/lib/types'
 
 function validateDraft(draft: PostDraft): string | null {
-  if (!draft.folderName?.trim()) return '缺少 folderName'
-  if (!draft.frontmatter.title?.trim()) return '标题不能为空'
-  if (!draft.frontmatter.slug?.trim()) return 'slug 不能为空'
-  if (!draft.frontmatter.date?.trim()) return 'date 不能为空'
+  if (!draft.folderName?.trim()) return 'Missing folderName.'
+  if (!draft.frontmatter.title?.trim()) return 'Title is required.'
+  if (!draft.frontmatter.slug?.trim()) return 'Slug is required.'
+  if (!draft.frontmatter.date?.trim()) return 'Date is required.'
   return null
 }
 
@@ -39,12 +39,14 @@ export async function POST(request: NextRequest) {
       ok: true,
       path: result.path,
       commitCount: result.commits.length,
+      repo: result.repo,
+      branch: result.branch,
     })
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : '发布失败',
+        error: error instanceof Error ? error.message : 'Publish failed.',
       },
       { status: 500 },
     )

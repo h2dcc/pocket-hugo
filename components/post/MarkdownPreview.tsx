@@ -16,8 +16,9 @@ export default function MarkdownPreview({ body, assets }: Props) {
       <ReactMarkdown
         components={{
           img: ({ src = '', alt = '' }) => {
-            const asset = assetMap.get(src)
-            const finalSrc = asset?.previewUrl || src
+            const normalizedSrc = typeof src === 'string' ? src : ''
+            const asset = assetMap.get(normalizedSrc)
+            const finalSrc = asset?.previewUrl || normalizedSrc
 
             return (
               <img

@@ -1,0 +1,161 @@
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+} from 'node:crypto'
+import { cookies } from 'next/headers'
+
+export const GITHUB_SESSION_COOKIE = 'hugoweb_github_session'
+export const GITHUB_OAUTH_STATE_COOKIE = 'hugoweb_github_oauth_state'
+
+export type GithubRepoConfig = {
+  owner: string
+  repo: string
+  branch: string
+  postsBasePath: string
+}
+
+export type GithubSession = {
+  accessToken: string
+  user: {
+    login: string
+    name: string
+    avatarUrl: string
+  }
+  repoConfig: GithubRepoConfig | null
+}
+
+function getSessionSecret() {
+  const secret = process.env.APP_SESSION_SECRET
+
+  if (!secret) {
+    throw new Error('Missing APP_SESSION_SECRET')
+  }
+
+  return secret
+}
+
+function getSessionKey() {
+  return createHash('sha256').update(getSessionSecret()).digest()
+}
+
+function encodePayload(session: GithubSession) {
+  return Buffer.from(JSON.stringify(session), 'utf-8').toString('base64url')
+}
+
+function decodePayload(payload: string) {
+  return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8')) as GithubSession
+}
+
+function serializeSession(session: GithubSession) {
+  const payload = encodePayload(session)
+  const iv = randomBytes(12)
+  const cipher = createCipheriv('aes-256-gcm', getSessionKey(), iv)
+  const encrypted = Buffer.concat([cipher.update(payload, 'utf-8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+
+  return [iv.toString('base64url'), encrypted.toString('base64url'), tag.toString('base64url')].join('.')
+}
+
+function deserializeSession(rawValue: string) {
+  const [ivPart, encryptedPart, tagPart] = rawValue.split('.')
+
+  if (!ivPart || !encryptedPart || !tagPart) {
+    return null
+  }
+
+  try {
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      getSessionKey(),
+      Buffer.from(ivPart, 'base64url'),
+    )
+    decipher.setAuthTag(Buffer.from(tagPart, 'base64url'))
+
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedPart, 'base64url')),
+      decipher.final(),
+    ]).toString('utf-8')
+
+    return decodePayload(decrypted)
+  } catch {
+    return null
+  }
+}
+
+export async function getGithubSession() {
+  const cookieStore = await cookies()
+  const rawValue = cookieStore.get(GITHUB_SESSION_COOKIE)?.value
+
+  if (!rawValue) {
+    return null
+  }
+
+  return deserializeSession(rawValue)
+}
+
+export async function requireGithubSession() {
+  const session = await getGithubSession()
+
+  if (!session) {
+    throw new Error('Please sign in with GitHub first.')
+  }
+
+  return session
+}
+
+export async function saveGithubSession(session: GithubSession) {
+  const cookieStore = await cookies()
+
+  cookieStore.set(GITHUB_SESSION_COOKIE, serializeSession(session), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 60 * 24 * 30,
+  })
+}
+
+export async function clearGithubSession() {
+  const cookieStore = await cookies()
+  cookieStore.set(GITHUB_SESSION_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+  })
+}
+
+export async function setGithubOauthState(state: string) {
+  const cookieStore = await cookies()
+  cookieStore.set(GITHUB_OAUTH_STATE_COOKIE, state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 60 * 10,
+  })
+}
+
+export async function consumeGithubOauthState() {
+  const cookieStore = await cookies()
+  const state = cookieStore.get(GITHUB_OAUTH_STATE_COOKIE)?.value || ''
+  cookieStore.set(GITHUB_OAUTH_STATE_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: 0,
+  })
+  return state
+}
+
+export function generateOauthState() {
+  return randomBytes(24).toString('base64url')
+}
+
+export function normalizePostsBasePath(input: string) {
+  return input.trim().replace(/^\/+|\/+$/g, '')
+}

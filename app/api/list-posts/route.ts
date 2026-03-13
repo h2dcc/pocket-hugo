@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
+import { requireGithubRepoContext } from '@/lib/github-context'
 import { listGithubDir } from '@/lib/github-read'
 
 export async function GET() {
   try {
-    const basePath = process.env.GITHUB_POSTS_BASE_PATH || 'content/posts'
+    const { repoConfig } = await requireGithubRepoContext()
+    const basePath = repoConfig.postsBasePath
     const items = await listGithubDir(basePath)
 
     const folders = items
@@ -17,12 +19,22 @@ export async function GET() {
     return NextResponse.json({
       ok: true,
       posts: folders,
+      repo: `${repoConfig.owner}/${repoConfig.repo}`,
+      branch: repoConfig.branch,
+      basePath,
     })
   } catch (error) {
+    if (error instanceof Error && error.message === 'Not Found') {
+      return NextResponse.json({
+        ok: true,
+        posts: [],
+      })
+    }
+
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : '读取文章列表失败',
+        error: error instanceof Error ? error.message : 'Failed to load posts.',
       },
       { status: 500 },
     )

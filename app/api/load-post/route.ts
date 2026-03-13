@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireGithubRepoContext } from '@/lib/github-context'
 import { getGithubFileContent, listGithubDir } from '@/lib/github-read'
 import { parseIndexMdToDraft } from '@/lib/post-parse'
 
@@ -8,13 +9,11 @@ export async function POST(request: NextRequest) {
     const folderName = String(body.folderName || '').trim()
 
     if (!folderName) {
-      return NextResponse.json(
-        { ok: false, error: '缺少 folderName' },
-        { status: 400 },
-      )
+      return NextResponse.json({ ok: false, error: 'Missing folderName.' }, { status: 400 })
     }
 
-    const basePath = process.env.GITHUB_POSTS_BASE_PATH || 'content/posts'
+    const { repoConfig } = await requireGithubRepoContext()
+    const basePath = repoConfig.postsBasePath
     const postPath = `${basePath}/${folderName}`
 
     const indexContent = await getGithubFileContent(`${postPath}/index.md`)
@@ -42,12 +41,15 @@ export async function POST(request: NextRequest) {
         ...draft,
         assets: remoteAssets,
       },
+      repo: `${repoConfig.owner}/${repoConfig.repo}`,
+      branch: repoConfig.branch,
+      basePath,
     })
   } catch (error) {
     return NextResponse.json(
       {
         ok: false,
-        error: error instanceof Error ? error.message : '读取文章失败',
+        error: error instanceof Error ? error.message : 'Failed to load post.',
       },
       { status: 500 },
     )

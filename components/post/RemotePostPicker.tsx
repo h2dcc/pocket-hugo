@@ -8,23 +8,33 @@ type RemotePostItem = {
 }
 
 type Props = {
+  enabled: boolean
+  reloadKey: string
   onLoaded: (folderName: string) => void
 }
 
-export default function RemotePostPicker({ onLoaded }: Props) {
+export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props) {
   const [posts, setPosts] = useState<RemotePostItem[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingPost, setLoadingPost] = useState('')
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
+  const [repoLabel, setRepoLabel] = useState('')
 
   useEffect(() => {
+    if (!enabled) {
+      setPosts([])
+      setError('')
+      setRepoLabel('')
+      return
+    }
+
     async function fetchPosts() {
       setLoading(true)
       setError('')
 
       try {
-        const response = await fetch('/api/list-posts')
+        const response = await fetch('/api/list-posts', { cache: 'no-store' })
         const result = await response.json()
 
         if (!response.ok || !result.ok) {
@@ -32,6 +42,9 @@ export default function RemotePostPicker({ onLoaded }: Props) {
         }
 
         setPosts(result.posts || [])
+        setRepoLabel(
+          result.repo && result.basePath ? `${result.repo} / ${result.basePath}` : '',
+        )
       } catch (error) {
         setError(error instanceof Error ? error.message : '读取文章列表失败')
       } finally {
@@ -40,7 +53,7 @@ export default function RemotePostPicker({ onLoaded }: Props) {
     }
 
     fetchPosts()
-  }, [])
+  }, [enabled, reloadKey])
 
   const filteredPosts = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -85,18 +98,32 @@ export default function RemotePostPicker({ onLoaded }: Props) {
     >
       <h3 style={{ margin: 0, fontSize: 18 }}>已发布文章</h3>
 
+      {!enabled ? (
+        <div style={{ marginTop: 12, color: '#666', fontSize: 14 }}>
+          登录 GitHub 并保存仓库配置后，这里会显示远程文章列表。
+        </div>
+      ) : null}
+
+      {repoLabel ? (
+        <div style={{ marginTop: 8, color: '#666', fontSize: 13, wordBreak: 'break-all' }}>
+          当前来源：{repoLabel}
+        </div>
+      ) : null}
+
       <div style={{ marginTop: 12 }}>
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
           placeholder="搜索 folderName"
+          disabled={!enabled}
           style={{
             width: '100%',
             padding: '12px 14px',
             borderRadius: 12,
             border: '1px solid #d1d5db',
             fontSize: 16,
+            opacity: enabled ? 1 : 0.6,
           }}
         />
       </div>
@@ -110,7 +137,7 @@ export default function RemotePostPicker({ onLoaded }: Props) {
             key={post.name}
             type="button"
             onClick={() => handleLoad(post.name)}
-            disabled={loadingPost === post.name}
+            disabled={!enabled || loadingPost === post.name}
             style={{
               textAlign: 'left',
               padding: '12px 14px',
@@ -124,8 +151,8 @@ export default function RemotePostPicker({ onLoaded }: Props) {
           </button>
         ))}
 
-        {!loading && !filteredPosts.length ? (
-          <div style={{ color: '#666', fontSize: 14 }}>没有匹配的文章</div>
+        {enabled && !loading && !filteredPosts.length ? (
+          <div style={{ color: '#666', fontSize: 14 }}>当前路径下还没有可匹配的文章</div>
         ) : null}
       </div>
     </div>
