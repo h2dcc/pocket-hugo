@@ -293,8 +293,20 @@ export default function PageEditorPage() {
 
   useEffect(() => {
     if (!draft) return
-    savePageDraftToStorage(draft)
-    setStatus(isEnglish ? 'Saved locally' : '已保存到本地')
+    const saveResult = savePageDraftToStorage(draft)
+    setStatus(
+      saveResult.ok
+        ? isEnglish
+          ? 'Saved locally'
+          : '已保存到本地'
+        : saveResult.code === 'quota'
+          ? isEnglish
+            ? 'Local storage is full. This page draft is no longer being fully saved on this device.'
+            : '本地存储空间已满，当前设备已无法完整保存这个页面草稿。'
+          : isEnglish
+            ? 'Local save failed on this device.'
+            : '当前设备本地保存失败。',
+    )
   }, [draft, isEnglish])
 
   useEffect(() => {
@@ -535,7 +547,18 @@ export default function PageEditorPage() {
       if (postDraft.assets[0]?.name) {
         postDraft.frontmatter.image = postDraft.assets[0].name
       }
-      saveDraftToStorage(postDraft)
+      const saveResult = saveDraftToStorage(postDraft)
+      if (!saveResult.ok) {
+        throw new Error(
+          saveResult.code === 'quota'
+            ? isEnglish
+              ? 'Local storage is full. The transferred draft could not be saved on this device.'
+              : '本地存储空间已满，转移后的草稿无法保存在当前设备。'
+            : isEnglish
+              ? 'Failed to save the transferred draft locally.'
+              : '转移后的草稿保存到本地失败。',
+        )
+      }
       setTransferStatus(
         isEnglish
           ? `Draft created: ${normalizedFolderName} (${result.loadedAssetCount || 0} assets)`
@@ -1106,4 +1129,5 @@ export default function PageEditorPage() {
     </main>
   )
 }
+
 

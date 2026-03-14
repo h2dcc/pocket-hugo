@@ -59,6 +59,7 @@ export default function NewPostPage() {
   const [error, setError] = useState('')
 
   const normalizedSlug = useMemo(() => normalizeSlugSuffix(slugInput), [slugInput])
+  const finalSlug = useMemo(() => slugInput.trim(), [slugInput])
 
   const folderName = useMemo(() => {
     if (!normalizedSlug) return ''
@@ -70,8 +71,16 @@ export default function NewPostPage() {
       setError(isEnglish ? 'Please enter a date prefix.' : '请填写日期前缀')
       return
     }
-    if (!normalizedSlug) {
+    if (!finalSlug) {
       setError(isEnglish ? 'Please enter a slug.' : '请填写 slug')
+      return
+    }
+    if (!normalizedSlug) {
+      setError(
+        isEnglish
+          ? 'Please enter at least one character that can be used in the folder name.'
+          : '请至少输入一个可用于文件夹名的字符。',
+      )
       return
     }
 
@@ -79,11 +88,23 @@ export default function NewPostPage() {
     const timezoneOffsetHours = settings.timezoneOffsetHours ?? 8
     const draft = createEmptyDraft(
       folderName,
-      normalizedSlug,
+      finalSlug,
       getCurrentDateTime(timezoneOffsetHours),
       settings.frontmatterPreferences,
     )
-    saveDraftToStorage(draft)
+    const saveResult = saveDraftToStorage(draft)
+    if (!saveResult.ok) {
+      setError(
+        saveResult.code === 'quota'
+          ? isEnglish
+            ? 'Local storage is full. Please delete some drafts or upload fewer/lower-size images on this device.'
+            : '本地存储空间已满。请先删除一些草稿，或在当前设备上减少图片数量或尺寸。'
+          : isEnglish
+            ? 'Failed to save the new draft locally.'
+            : '新草稿保存到本地失败。',
+      )
+      return
+    }
     router.push(`/editor/${folderName}`)
   }
 
@@ -177,7 +198,7 @@ export default function NewPostPage() {
             type="text"
             value={slugInput}
             onChange={(e) => {
-              setSlugInput(normalizeSlugSuffix(e.target.value))
+              setSlugInput(e.target.value)
               setError('')
             }}
             placeholder={useDatePrefix ? 'three-body-problem-reading-notes' : 'my-post-slug'}
@@ -188,12 +209,12 @@ export default function NewPostPage() {
           />
           <div style={{ marginTop: 8, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
             {isEnglish
-              ? 'An English slug is recommended. Invalid URL or file-path symbols are removed automatically, keeping only lowercase letters, numbers, and `-`.'
-              : '建议使用英文 slug。系统会自动过滤不适合网页 URL 和文件路径的符号，只保留小写字母、数字和 `-`。'}
+              ? 'You can enter any slug text here. The folder name preview below will still use a safe normalized version for the local draft folder.'
+              : '这里可以输入任意 slug 内容。下方的文件夹名预览仍会使用规范化后的安全版本来创建本地草稿目录。'}
           </div>
           {slugInput && slugInput !== normalizedSlug ? (
             <div style={{ marginTop: 6, fontSize: 13, color: '#1677ff' }}>
-              {isEnglish ? 'Normalized to: ' : '已自动规范为：'}
+              {isEnglish ? 'Folder-safe version: ' : '用于文件夹名的规范版本：'}
               {normalizedSlug}
             </div>
           ) : null}

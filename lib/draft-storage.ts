@@ -1,14 +1,44 @@
+import { restoreAssetPreviewUrls } from '@/lib/image'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
 import type { PostDraft } from '@/lib/types'
 
 const DRAFT_PREFIX = 'draft:'
 
+export type DraftStorageSaveResult =
+  | { ok: true }
+  | { ok: false; code: 'quota' | 'unknown' }
+
 export function getDraftStorageKey(folderName: string) {
   return `${DRAFT_PREFIX}${folderName}`
 }
 
-export function saveDraftToStorage(draft: PostDraft) {
-  localStorage.setItem(getDraftStorageKey(draft.folderName), JSON.stringify(draft))
+function prepareDraftForStorage(draft: PostDraft): PostDraft {
+  return {
+    ...draft,
+    assets: draft.assets.map((asset) => ({
+      ...asset,
+      previewUrl: '',
+    })),
+  }
+}
+
+function isQuotaExceededError(error: unknown) {
+  return (
+    error instanceof DOMException &&
+    (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+  )
+}
+
+export function saveDraftToStorage(draft: PostDraft): DraftStorageSaveResult {
+  try {
+    localStorage.setItem(
+      getDraftStorageKey(draft.folderName),
+      JSON.stringify(prepareDraftForStorage(draft)),
+    )
+    return { ok: true }
+  } catch (error) {
+    return { ok: false, code: isQuotaExceededError(error) ? 'quota' : 'unknown' }
+  }
 }
 
 export function loadDraftFromStorage(folderName: string): PostDraft | null {
@@ -20,6 +50,7 @@ export function loadDraftFromStorage(folderName: string): PostDraft | null {
     return {
       ...parsed,
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
+      assets: restoreAssetPreviewUrls(parsed.assets || []),
     }
   } catch {
     return null
@@ -48,12 +79,15 @@ export function listDraftsFromStorage(): PostDraft[] {
     }
   }
 
-  return drafts.map((draft) => ({
-    ...draft,
-    frontmatter: normalizeFrontmatter(draft.frontmatter),
-  })).sort((a, b) => {
-    const aDate = new Date(a.frontmatter.date || 0).getTime()
-    const bDate = new Date(b.frontmatter.date || 0).getTime()
-    return bDate - aDate
-  })
+  return drafts
+    .map((draft) => ({
+      ...draft,
+      frontmatter: normalizeFrontmatter(draft.frontmatter),
+      assets: restoreAssetPreviewUrls(draft.assets || []),
+    }))
+    .sort((a, b) => {
+      const aDate = new Date(a.frontmatter.date || 0).getTime()
+      const bDate = new Date(b.frontmatter.date || 0).getTime()
+      return bDate - aDate
+    })
 }

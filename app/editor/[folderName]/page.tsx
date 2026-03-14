@@ -273,8 +273,20 @@ export default function EditorPage() {
 
   useEffect(() => {
     if (!draft) return
-    saveDraftToStorage(draft)
-    setStatus(isEnglish ? 'Saved locally' : '已保存到本地')
+    const saveResult = saveDraftToStorage(draft)
+    setStatus(
+      saveResult.ok
+        ? isEnglish
+          ? 'Saved locally'
+          : '已保存到本地'
+        : saveResult.code === 'quota'
+          ? isEnglish
+            ? 'Local storage is full. This draft is no longer being fully saved on this device.'
+            : '本地存储空间已满，当前设备已无法完整保存这篇草稿。'
+          : isEnglish
+            ? 'Local save failed on this device.'
+            : '当前设备本地保存失败。',
+    )
   }, [draft, folderName, isEnglish])
 
   useEffect(() => {
@@ -1924,3 +1936,5 @@ export default function EditorPage() {
     </main>
   )
 }
+
+
