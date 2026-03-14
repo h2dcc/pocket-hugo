@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { saveDraftToStorage } from '@/lib/draft-storage'
@@ -43,7 +43,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         if (!response.ok || !result.ok) {
           throw new Error(
             result.error ||
-              (isEnglish ? 'Failed to load published posts' : '读取已发布文章失�?),
+              (isEnglish ? 'Failed to load published posts' : '读取已发布文章失败'),
           )
         }
 
@@ -55,7 +55,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
             ? error.message
             : isEnglish
               ? 'Failed to load published posts'
-              : '读取已发布文章失�?,
+              : '读取已发布文章失败',
         )
       } finally {
         setLoading(false)
@@ -88,7 +88,19 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         throw new Error(result.error || (isEnglish ? 'Failed to load post' : '读取文章失败'))
       }
 
-      localStorage.setItem(`draft:${folderName}`, JSON.stringify(result.draft))
+      const saveResult = saveDraftToStorage(result.draft)
+      if (!saveResult.ok) {
+        throw new Error(
+          saveResult.code === 'quota'
+            ? isEnglish
+              ? 'Local storage is full. This post could not be saved on this device.'
+              : '本地存储空间已满，这篇文章无法保存在当前设备。'
+            : isEnglish
+              ? 'Failed to save the post locally.'
+              : '文章保存到本地失败。',
+        )
+      }
+
       onLoaded(folderName)
     } catch (error) {
       setError(
@@ -108,19 +120,19 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         background: 'var(--card-muted)',
       }}
     >
-      <h3 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Published Posts' : '已发布文�?}</h3>
+      <h3 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Published Posts' : '已发布文章'}</h3>
 
       {!enabled ? (
         <div style={{ marginTop: 12, color: 'var(--muted)', fontSize: 13, lineHeight: 1.6 }}>
           {isEnglish
             ? 'Sign in to GitHub and save a repository config to browse remote posts here.'
-            : '登录 GitHub 并保存仓库配置后，这里会显示远程文章列表�?}
+            : '登录 GitHub 并保存仓库配置后，这里会显示远程文章列表。'}
         </div>
       ) : null}
 
       {repoLabel ? (
         <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12, wordBreak: 'break-all' }}>
-          {isEnglish ? 'Current source: ' : '当前来源�?}
+          {isEnglish ? 'Current source: ' : '当前来源：'}
           {repoLabel}
         </div>
       ) : null}
@@ -130,7 +142,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder={isEnglish ? 'Search folder name' : '搜索目录�?}
+          placeholder={isEnglish ? 'Search folder name' : '搜索目录名'}
           disabled={!enabled}
           style={{
             width: '100%',
@@ -171,7 +183,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
               fontWeight: 700,
             }}
           >
-            {loadingPost === post.name ? (isEnglish ? 'Loading...' : '读取�?..') : post.name}
+            {loadingPost === post.name ? (isEnglish ? 'Loading...' : '读取中...') : post.name}
           </button>
         ))}
 
@@ -187,11 +199,10 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
               background: 'var(--card)',
             }}
           >
-            {isEnglish ? 'No matching posts were found under the current path.' : '当前路径下没有匹配的文章�?}
+            {isEnglish ? 'No matching posts were found under the current path.' : '当前路径下没有匹配的文章。'}
           </div>
         ) : null}
       </div>
     </div>
   )
 }
-
