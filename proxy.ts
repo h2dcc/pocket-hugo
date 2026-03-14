@@ -20,6 +20,9 @@ export function proxy(request: NextRequest) {
   return NextResponse.redirect(url)
 }
 
+// Keep proxy on Edge runtime so Cloudflare Workers can execute it.
+export const runtime = 'edge'
+
 export const config = {
   matcher: ['/new', '/editor/:path*', '/publish/:path*', '/page-editor/:path*'],
 }
