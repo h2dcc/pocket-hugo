@@ -2,123 +2,121 @@
 
 [中文文档](./README.zh-CN.md)
 
-PocketHugo is a mobile-friendly editor and publishing workflow for Hugo sites that store content in GitHub.
+![Pocket-Hugo-Mobile](pockethugomobile.webp)
 
-It is designed for people who want to:
+![Pocket-Hugo-Desktop](pockethugodesktop.webp)
 
-- write or update Hugo posts from a phone or browser
-- keep Hugo page bundle structure intact
-- upload images with compression and format conversion
-- continue editing already-published posts from GitHub
-- publish directly back to a selected Hugo repository
 
-## What It Does
+PocketHugo is a mobile-first Hugo publishing app for GitHub-hosted content.
 
-PocketHugo combines a lightweight Markdown editor, image workflow, and GitHub publishing flow into one app.
+- GitHub repo: `https://github.com/h2dcc/pocket-hugo`
+- Production (Vercel): `https://pockethugo.lawtee.com`
+- Production (Cloudflare Workers): `https://pocket-hugo.rpwi.workers.dev`
 
-Core capabilities:
+## Why PocketHugo
 
-- GitHub sign-in on the home page
-- choose a target repository, branch, and Hugo posts directory
-- create local drafts and continue editing later
-- load published posts from GitHub and edit them again
-- upload images with optional compression, resizing, and WebP conversion
-- set cover image, insert images into Markdown, and delete images
-- batch-publish `index.md` and changed assets in a single Git commit
-- delete removed remote images when republishing a previously published post
-- light/dark mode and English/Chinese interface switching
+PocketHugo keeps Hugo's native page bundle workflow and removes most of the Git friction on phones:
 
-## Why This Project Exists
+- write/edit from mobile browser
+- keep `index.md + images` in one folder
+- compress and manage images during upload
+- publish back to GitHub in one batch commit
+- no app-side user database for your article content
 
-Hugo is great for static sites, but editing and publishing from a phone is usually awkward.
+## Builder Story
 
-Common pain points:
+This project comes from real high-frequency publishing experience.
 
-- GitHub web editing is not comfortable for longer Markdown writing
-- Hugo page bundles are easy to break when using generic CMS tools
-- images often become the most annoying part of the workflow
-- small content updates still require too much manual Git work
+As a heavy Hugo user publishing 100+ posts per year, I have repeatedly faced the same pain points in mobile writing, image handling, and Git-based publishing workflows. I tested many existing solutions and spent a long time iterating on different approaches, but most options either broke Hugo's native structure or felt too heavy for daily use.
 
-PocketHugo keeps Hugo's native content structure, but makes the day-to-day writing and publishing flow much easier.
+PocketHugo was built to solve those practical problems directly: keep Hugo-native structure, reduce friction on phones, and make frequent publishing reliable.
 
-## Content Model
+### Long-term Iteration Evidence
 
-PocketHugo is built around Hugo page bundles.
+This was not a one-week prototype. It came from a long sequence of Hugo workflow experiments:
 
-Typical result:
+- 2024-06-02: publishing Hugo from Android with StackEdit
+- 2024-12-09: adapting CMS workflow to Hugo directory structure
+- 2025-05-08: writing Hugo with StackEdit in daily workflow
+- 2025-10-27: publishing Hugo via GitHub Issue / GitHub App ideas
 
-```text
-content/posts/2026-03-13-my-post/
-  index.md
-  1.webp
-  cover.webp
-```
 
-The detailed structure comparison and the practical benefits are explained in the next section.
+After repeatedly trying and documenting these paths, PocketHugo is the first version that fully closes the loop for mobile-first Hugo writing and publishing.
 
-## Why Page Bundles Work Better
+## Main Features
 
-PocketHugo is intentionally built around Hugo's native page bundle structure instead of the more common "article files here, images somewhere else" pattern.
+### Post workflow
 
-Hugo page bundle:
+- GitHub OAuth sign-in
+- repo/branch/posts-path selection
+- local draft storage and continue editing
+- load already-published posts from GitHub and edit again
+- publish confirmation before pushing
+- batch commit changed markdown + assets in one publish
+- show changed file list on publish result page
 
-```text
-content/posts/2026-03-13-my-post/
-  index.md
-  cover.webp
-  1.webp
-  2.webp
-```
+### Image workflow
 
-A more common separated structure:
+- optional auto conversion/compression
+- configurable max width (up to 4096) and quality precision
+- optional auto file naming (`1.webp`, `2.webp`, ...)
+- insert image markdown at current cursor position
+- delete image from editor list and sync remote deletion on republish
+- tap image to preview large version and copy file name
 
-```text
-content/posts/2026-03-13-my-post.md
-static/uploads/2026/03/cover.webp
-static/uploads/2026/03/1.webp
-static/uploads/2026/03/2.webp
-```
+### Editor experience
 
-Why the Hugo page bundle model is better:
+- mobile-friendly layout and controls
+- collapsible sections (Basic Info / Images / Body / Frontmatter)
+- slash command markdown helper (`/`) in body editor
+- markdown preview with responsive width and wrapped code blocks
+- manual save button while keeping autosave
+- light/dark mode and Chinese/English switch
 
-- the article and its images live together in one folder
-- moving, copying, renaming, or deleting a post is much safer
-- it is easier to understand which images belong to which article
-- image references stay local and predictable
-- repository history is easier to inspect because one post usually maps to one folder
-- it matches how Hugo already wants page resources to work
+### Page Editor (standalone pages + quick timeline)
 
-For a mobile publishing workflow, this matters even more: the less manual file organization you need to do, the less likely you are to break paths, lose images, or publish to the wrong place.
+- two modes:
+  - Standalone Page: edit one page directly
+  - Quick Timeline: add/edit multiple timestamped entries
+- image upload/insert/delete support in page editor
+- frontmatter editing area
+- transfer timeline page to a new post draft in one step
+
+### Preferences and customization
+
+- publishing preferences panel on home page
+- custom basic-info field mapping (except fixed `title/date/draft`)
+- custom cover-image field key
+- fixed categories presets for quick select
+- tags input with English comma rules
+- timezone preference for frontmatter datetime
+
+## Architecture & Privacy
+
+PocketHugo is local-first:
+
+- drafts/preferences are stored in the user's browser
+- session/config cookies are encrypted and stored client-side
+- backend does not maintain a user content database
+- GitHub token usage is server-side only
 
 ## Tech Stack
 
-- Next.js App Router
-- React
-- TypeScript
-- GitHub OAuth
-- GitHub Contents / Git Trees APIs
+- Next.js (App Router)
+- React + TypeScript
+- GitHub OAuth + GitHub APIs
+- OpenNext adapter for Cloudflare Workers
+
+## Requirements
+
+- Node.js `22 LTS` recommended
+- npm
 
 ## Local Development
 
-Recommended Node.js version:
-
-```text
-22 LTS
-```
-
-This project uses Next.js 16. While the framework requires Node.js 20.9+, in practice we recommend using Node 22 LTS for local development to avoid Windows native module issues with newer Node releases.
-
-Install dependencies:
-
 ```bash
 npm install
-```
-
-If you already installed dependencies with a different Node version, remove the local install and reinstall after switching Node:
-
-```bash
-Remove-Item node_modules,.next,package-lock.json -Recurse -Force
-npm install
+npm run dev
 ```
 
 Create `.env.local`:
@@ -126,187 +124,99 @@ Create `.env.local`:
 ```env
 APP_URL=http://localhost:3000
 APP_SESSION_SECRET=replace-with-a-long-random-secret
-GITHUB_CLIENT_ID=your-github-oauth-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+GITHUB_CLIENT_ID=your-client-id
+GITHUB_CLIENT_SECRET=your-client-secret
 ```
 
-Start the dev server:
+## Get GitHub OAuth Credentials
 
-```bash
-npm run dev
-```
+Go to:
 
-The development script uses `next dev --webpack` intentionally, and the production build uses `next build --webpack` for the same reason. On some Windows environments, Next.js native SWC bindings may fail to load and Turbopack cannot continue with the WASM fallback, while the webpack pipeline still works normally.
+`GitHub -> Settings -> Developer settings -> OAuth Apps -> New OAuth App`
 
-Open:
+Then:
 
-```text
-http://localhost:3000
-```
+1. Set `Application name` (for example: `PocketHugo Vercel`)
+2. Set `Homepage URL` to your deployment domain
+3. Set `Authorization callback URL` to `https://your-domain/api/auth/callback`
+4. Click **Register application**
+5. Copy **Client ID** -> `GITHUB_CLIENT_ID`
+6. Click **Generate a new client secret** -> `GITHUB_CLIENT_SECRET`
 
-## GitHub OAuth Setup
 
-Create a GitHub OAuth App and configure:
 
-- Homepage URL: `http://localhost:3000` for local testing
-- Authorization callback URL: `http://localhost:3000/api/auth/callback` for local testing
+## Environment Variables
 
-For production, change those to your deployed domain.
+Required in all environments:
 
-The app currently expects:
-
-- `GITHUB_CLIENT_ID`
-- `GITHUB_CLIENT_SECRET`
 - `APP_URL`
 - `APP_SESSION_SECRET`
+- `GITHUB_CLIENT_ID`
+- `GITHUB_CLIENT_SECRET`
 
-## Vercel Deployment
+Generate `APP_SESSION_SECRET` example:
 
-PocketHugo can be deployed directly to Vercel.
-
-### One-click install
-
-```text
-Add your Vercel one-click deploy link here
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-### Required environment variables
-
-After importing the project into Vercel, add these variables in Project Settings -> Environment Variables:
+### Vercel example
 
 ```env
-APP_URL=https://your-production-domain.vercel.app
+APP_URL=https://pockethugo.lawtee.com
 APP_SESSION_SECRET=replace-with-a-long-random-secret
-GITHUB_CLIENT_ID=your-github-oauth-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+GITHUB_CLIENT_ID=your-vercel-oauth-client-id
+GITHUB_CLIENT_SECRET=your-vercel-oauth-client-secret
 ```
 
-### GitHub OAuth callback URL
+### Cloudflare Workers example
 
-After Vercel gives you a production URL, update the OAuth app callback to:
-
-```text
-https://your-production-domain.vercel.app/api/auth/callback
+```env
+APP_URL=https://pocket-hugo.rpwi.workers.dev
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=your-workers-oauth-client-id
+GITHUB_CLIENT_SECRET=your-workers-oauth-client-secret
 ```
 
-### Recommended checks after deployment
+## Deploy to Vercel
 
-Recommended production checks:
+1. Import this repo in Vercel
+2. Set environment variables in Project Settings
+3. Build command:
 
-- GitHub sign-in works
-- repository list loads
-- branch and posts directory can be saved
-- creating a draft works
-- republishing a post updates only the intended files
-- deleting a remote image removes it from GitHub on republish
+```bash
+npm run build:vercel
+```
 
-## Cloudflare Workers Deployment
+4. Deploy
 
-PocketHugo can also be deployed to Cloudflare Workers using OpenNext.
+## Deploy to Cloudflare Workers
 
-### Required files (already included)
+This repo already includes:
 
 - `wrangler.jsonc`
 - `open-next.config.ts`
 
-### Install dependencies
+Deploy commands:
 
 ```bash
 npm install
-```
-
-### Build and deploy
-
-```bash
+npm run build:cloudflare
 npm run deploy:cloudflare
 ```
 
-For local Workers preview:
+Optional local preview:
 
 ```bash
 npm run preview:cloudflare
 ```
 
-### Required environment variables
+## Security Notes
 
-In Cloudflare Worker settings, configure:
-
-```env
-APP_URL=https://your-worker-domain.workers.dev
-APP_SESSION_SECRET=replace-with-a-long-random-secret
-GITHUB_CLIENT_ID=your-github-oauth-client-id
-GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
-```
-
-### GitHub OAuth callback URL
-
-Update your GitHub OAuth App callback URL to:
-
-```text
-https://your-worker-domain.workers.dev/api/auth/callback
-```
-
-## Publishing Behavior
-
-When publishing:
-
-- `index.md` is always regenerated from the editor state
-- newly uploaded or changed assets are included in the same Git commit
-- untouched remote images are not overwritten
-- removed remote images are deleted from the repository when republishing
-
-## UI Features
-
-- mobile-first page layout
-- collapsible settings and editor panels
-- simple Markdown toolbar
-- Markdown preview
-- publish confirmation
-- publish result page with changed file list
-
-## Project Structure
-
-Main areas:
-
-- [`app/`](/d:/Hugo/hugoweb/app) - routes, API endpoints, metadata
-- [`components/`](/d:/Hugo/hugoweb/components) - UI components
-- [`lib/`](/d:/Hugo/hugoweb/lib) - GitHub, storage, markdown, image, session logic
-
-## Notes
-
-- drafts are stored in browser local storage
-- repository settings are restored from cookies after sign-in
-- current production flow is optimized for one selected target Hugo repository at a time
-- preview deployments are useful for UI checks, but GitHub OAuth is most reliable on the final production domain because callback URLs are fixed
-
-## Security & Privacy
-
-PocketHugo is designed to keep user data on the user's side as much as possible, instead of storing it in a separate online application database.
-
-In practice, this means:
-
-- draft content stays in the user's browser
-- language, theme, and publishing preferences stay in the user's browser
-- sign-in session and repository preference are stored as encrypted browser cookies
-- the backend does not keep a user database for article content, profiles, or GitHub tokens
-
-Security characteristics of the current implementation:
-
-- GitHub OAuth uses a state parameter to prevent login CSRF
-- session cookies are encrypted and authenticated before being stored
-- session cookies are marked `HttpOnly`
-- cookies use `SameSite=Lax`
-- cookies use `Secure` in production
-- protected editor routes require a valid sign-in session
-- GitHub access is performed server-side, not from the browser directly
-- the app adds baseline browser security headers such as `X-Frame-Options`, `X-Content-Type-Options`, and `Referrer-Policy`
-
-Recommended operational practices:
-
-- use a strong `APP_SESSION_SECRET`
-- rotate `GITHUB_CLIENT_SECRET` immediately if it is ever exposed
-- use the production Vercel domain for the final OAuth callback URL
-- do not commit `.env.local`
+- Keep `.env.local` out of git
+- Rotate `GITHUB_CLIENT_SECRET` immediately if exposed
+- Use strong `APP_SESSION_SECRET`
+- Use production domains in OAuth callback URLs
 
 ## License
 
