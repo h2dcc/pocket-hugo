@@ -25,6 +25,7 @@ import {
 } from '@/lib/site-settings'
 import { createEmptyDraft } from '@/lib/post-template'
 import { useLanguage } from '@/lib/use-language'
+import { useRequireAuth } from '@/lib/use-require-auth'
 import type { DraftAsset } from '@/lib/types'
 
 type PageConfigResponse = {
@@ -136,6 +137,7 @@ function mergeDrafts(remoteDraft: PageDraft, localDraft: PageDraft | null) {
 export default function PageEditorPage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
+  const checkingAuth = useRequireAuth('/page-editor')
   const bodyRef = useRef<HTMLTextAreaElement | null>(null)
   const entryRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -204,6 +206,9 @@ export default function PageEditorPage() {
     let cancelled = false
 
     async function loadPage() {
+      if (checkingAuth) {
+        return
+      }
       setLoading(true)
       setError('')
 
@@ -270,11 +275,11 @@ export default function PageEditorPage() {
       }
     }
 
-    loadPage()
+    void loadPage()
     return () => {
       cancelled = true
     }
-  }, [isEnglish])
+  }, [checkingAuth, isEnglish])
 
   useEffect(() => {
     if (!draft) return
@@ -648,12 +653,20 @@ export default function PageEditorPage() {
       )
     : slashCommands
 
-  if (loading || !draft) {
+  if (checkingAuth || loading || !draft) {
     return (
       <main style={{ padding: 16, maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
         <SiteHeader />
         <section style={card}>
-          {loading ? (isEnglish ? 'Loading page editor...' : '正在加载页面编辑器...') : error}
+          {checkingAuth
+            ? isEnglish
+              ? 'Checking sign-in status...'
+              : '正在检查登录状态...'
+            : loading
+              ? isEnglish
+                ? 'Loading page editor...'
+                : '正在加载页面编辑器...'
+              : error}
         </section>
         <SiteFooter />
       </main>

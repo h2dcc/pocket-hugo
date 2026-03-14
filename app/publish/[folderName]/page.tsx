@@ -5,6 +5,7 @@ import { Suspense } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import { useLanguage } from '@/lib/use-language'
+import { useRequireAuth } from '@/lib/use-require-auth'
 
 function PublishResultContent() {
   const { isEnglish } = useLanguage()
@@ -203,6 +204,12 @@ function PublishResultContent() {
 }
 
 export default function PublishResultPage() {
+  const checkingAuth = useRequireAuth('/publish')
+
+  if (checkingAuth) {
+    return null
+  }
+
   return (
     <main
       style={{

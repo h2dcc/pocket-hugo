@@ -8,6 +8,7 @@ import { createEmptyDraft } from '@/lib/post-template'
 import { loadSiteSettingsFromStorage } from '@/lib/site-settings'
 import { saveDraftToStorage } from '@/lib/draft-storage'
 import { useLanguage } from '@/lib/use-language'
+import { useRequireAuth } from '@/lib/use-require-auth'
 
 function getDatePartsWithOffset(offsetHours: number) {
   const now = new Date()
@@ -49,6 +50,7 @@ function normalizeSlugSuffix(input: string) {
 export default function NewPostPage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
+  const checkingAuth = useRequireAuth('/new')
   const [useDatePrefix, setUseDatePrefix] = useState(true)
   const [datePrefix, setDatePrefix] = useState(() =>
     getTodayPrefixByOffset(loadSiteSettingsFromStorage().timezoneOffsetHours ?? 8),
@@ -100,6 +102,10 @@ export default function NewPostPage() {
     fontSize: 16,
     background: 'var(--card)',
     color: 'var(--foreground)',
+  }
+
+  if (checkingAuth) {
+    return null
   }
 
   return (

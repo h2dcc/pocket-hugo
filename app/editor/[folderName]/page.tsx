@@ -25,6 +25,7 @@ import {
   type SiteSettings,
 } from '@/lib/site-settings'
 import { useLanguage } from '@/lib/use-language'
+import { useRequireAuth } from '@/lib/use-require-auth'
 import type { DraftAsset, PostDraft } from '@/lib/types'
 
 function createCustomFieldId() {
@@ -181,6 +182,7 @@ export default function EditorPage() {
   const params = useParams<{ folderName: string }>()
   const folderName = params.folderName
   const router = useRouter()
+  const checkingAuth = useRequireAuth(folderName ? `/editor/${folderName}` : '/editor')
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
@@ -782,12 +784,20 @@ export default function EditorPage() {
       )
     : slashCommands
 
-  if (!draft) {
+  if (checkingAuth || !draft) {
     return (
       <main style={{ padding: 'clamp(16px, 3vw, 28px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
         <SiteHeader />
         <h1>{isEnglish ? 'Edit Post' : '编辑文章'}</h1>
-        <p>{isEnglish ? 'Loading draft, or the draft could not be found.' : '正在加载草稿，或草稿不存在。'}</p>
+        <p>
+          {checkingAuth
+            ? isEnglish
+              ? 'Checking sign-in status...'
+              : '正在检查登录状态...'
+            : isEnglish
+              ? 'Loading draft, or the draft could not be found.'
+              : '正在加载草稿，或草稿不存在。'}
+        </p>
         <SiteFooter />
       </main>
     )
