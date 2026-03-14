@@ -200,6 +200,52 @@ Recommended production checks:
 - republishing a post updates only the intended files
 - deleting a remote image removes it from GitHub on republish
 
+## Cloudflare Workers Deployment
+
+PocketHugo can also be deployed to Cloudflare Workers using OpenNext.
+
+### Required files (already included)
+
+- `wrangler.jsonc`
+- `open-next.config.ts`
+
+### Install dependencies
+
+```bash
+npm install
+```
+
+### Build and deploy
+
+```bash
+npm run deploy:cloudflare
+```
+
+For local Workers preview:
+
+```bash
+npm run preview:cloudflare
+```
+
+### Required environment variables
+
+In Cloudflare Worker settings, configure:
+
+```env
+APP_URL=https://your-worker-domain.workers.dev
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=your-github-oauth-client-id
+GITHUB_CLIENT_SECRET=your-github-oauth-client-secret
+```
+
+### GitHub OAuth callback URL
+
+Update your GitHub OAuth App callback URL to:
+
+```text
+https://your-worker-domain.workers.dev/api/auth/callback
+```
+
 ## Publishing Behavior
 
 When publishing:
