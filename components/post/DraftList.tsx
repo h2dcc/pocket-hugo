@@ -9,19 +9,46 @@ type Props = {
   onDelete: (folderName: string) => void
 }
 
-const actionButtonStyle: React.CSSProperties = {
-  display: 'inline-flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '10px 14px',
+const iconActionStyle: React.CSSProperties = {
+  width: 32,
+  height: 32,
   borderRadius: 10,
   border: '1px solid var(--border)',
   background: 'var(--card)',
   color: 'var(--foreground)',
-  cursor: 'pointer',
-  fontSize: 14,
-  fontWeight: 600,
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
   textDecoration: 'none',
+  flexShrink: 0,
+}
+
+function EditIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M4 20H8L18.5 9.5C19.3 8.7 19.3 7.3 18.5 6.5L17.5 5.5C16.7 4.7 15.3 4.7 14.5 5.5L4 16V20Z"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinejoin="round"
+      />
+      <path d="M13.5 6.5L17.5 10.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M5 7H19M9 7V5H15V7M8 7L9 19H15L16 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
 }
 
 export default function DraftList({ drafts, onDelete }: Props) {
@@ -40,35 +67,66 @@ export default function DraftList({ drafts, onDelete }: Props) {
             border: '1px solid var(--border)',
             borderRadius: 12,
             padding: 16,
-            display: 'grid',
-            gap: 8,
             background: 'var(--card-muted)',
           }}
         >
-          <div style={{ fontWeight: 600 }}>
-            {draft.frontmatter.title || (isEnglish ? '(Untitled article)' : '（未命名文章）')}
-          </div>
-          <div style={{ color: 'var(--muted)', wordBreak: 'break-all' }}>{draft.folderName}</div>
-          <div style={{ color: 'var(--muted)' }}>
-            {draft.frontmatter.date || (isEnglish ? 'No date' : '无日期')}
-          </div>
-
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            <Link href={`/editor/${draft.folderName}`} style={actionButtonStyle}>
-              {isEnglish ? 'Continue Editing' : '继续编辑'}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}
+          >
+            <Link
+              href={`/editor/${draft.folderName}`}
+              style={{
+                display: 'grid',
+                gap: 8,
+                minWidth: 0,
+                flex: 1,
+                color: 'inherit',
+                textDecoration: 'none',
+              }}
+              aria-label={isEnglish ? 'Open draft editor' : '打开草稿编辑页'}
+              title={isEnglish ? 'Open draft editor' : '打开草稿编辑页'}
+            >
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                {draft.frontmatter.title || (isEnglish ? '(Untitled article)' : '（未命名文章）')}
+              </div>
+              <div style={{ color: 'var(--muted)', wordBreak: 'break-all', fontSize: 13 }}>
+                {draft.folderName}
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                {draft.frontmatter.date || (isEnglish ? 'No date' : '无日期')}
+              </div>
             </Link>
 
-            <button
-              type="button"
-              onClick={() => onDelete(draft.folderName)}
-              style={{
-                ...actionButtonStyle,
-                border: '1px solid #ef4444',
-                color: '#ef4444',
-              }}
-            >
-              {isEnglish ? 'Delete Draft' : '删除草稿'}
-            </button>
+            <div style={{ display: 'grid', gap: 8, flexShrink: 0 }}>
+              <Link
+                href={`/editor/${draft.folderName}`}
+                style={iconActionStyle}
+                aria-label={isEnglish ? 'Continue editing draft' : '继续编辑草稿'}
+                title={isEnglish ? 'Continue editing draft' : '继续编辑草稿'}
+              >
+                <EditIcon />
+              </Link>
+
+              <button
+                type="button"
+                onClick={() => onDelete(draft.folderName)}
+                style={{
+                  ...iconActionStyle,
+                  border: '1px solid #ef4444',
+                  color: '#ef4444',
+                  cursor: 'pointer',
+                }}
+                aria-label={isEnglish ? 'Delete draft' : '删除草稿'}
+                title={isEnglish ? 'Delete draft' : '删除草稿'}
+              >
+                <TrashIcon />
+              </button>
+            </div>
           </div>
         </div>
       ))}

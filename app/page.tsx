@@ -867,7 +867,7 @@ export default function HomePage() {
                 }}
               >
                 <RepoIcon />
-                <span>{isEnglish ? 'Repository' : '仓库'}</span>
+                <span>{isEnglish ? 'Repo' : '仓库'}</span>
               </button>
 
               <button
@@ -901,7 +901,7 @@ export default function HomePage() {
                 }}
               >
                 <SettingsIcon />
-                <span>{isEnglish ? 'Preferences' : '偏好'}</span>
+                <span>{isEnglish ? 'Setting' : '偏好'}</span>
               </button>
             </>
           ) : null}

@@ -399,7 +399,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
                 </span>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <IconButton label={isEnglish ? 'Add common field' : '添加常用字段'} icon={<PlusIcon />} onClick={addExtraBasicField} active />
+                <IconButton label={isEnglish ? 'Add common field' : '添加常用字段'} icon={<PlusIcon />} onClick={addExtraBasicField} />
                 <SectionToggleButton open={extraFieldsOpen} onClick={() => setExtraFieldsOpen((prev) => !prev)} label={extraFieldsOpen ? (isEnglish ? 'Collapse common fields' : '收起常用字段') : (isEnglish ? 'Expand common fields' : '展开常用字段')} />
               </div>
             </div>

@@ -29,7 +29,6 @@ export default function LanguageToggle() {
       label={isEnglish ? 'Switch language to Chinese' : '切换语言到 English'}
       onClick={handleToggle}
       icon={<LanguageIcon />}
-      badge={language === 'en' ? 'EN' : '中'}
       active={language === 'zh'}
     />
   )
