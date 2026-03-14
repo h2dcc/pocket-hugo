@@ -54,7 +54,7 @@ function PagePublishResultContent() {
   return (
     <>
       <section style={{ ...cardStyle, display: 'grid', gap: 8 }}>
-        <h1 style={{ margin: 0, fontSize: 28 }}>
+        <h1 style={{ margin: 0, fontSize: 14 }}>
           {isEnglish ? 'Page Published Successfully' : '页面发布成功'}
         </h1>
         <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.7 }}>
@@ -65,7 +65,7 @@ function PagePublishResultContent() {
       </section>
 
       <section style={{ ...cardStyle, display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gap: 10, fontSize: 15 }}>
+        <div style={{ display: 'grid', gap: 10, fontSize: 14 }}>
           {repo ? (
             <div>
               <strong>{isEnglish ? 'Repository: ' : '目标仓库：'}</strong>

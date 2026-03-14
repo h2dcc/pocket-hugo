@@ -6,6 +6,8 @@ import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import ImageUploader from '@/components/post/ImageUploader'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import IconButton from '@/components/ui/IconButton'
+import SectionToggleButton from '@/components/ui/SectionToggleButton'
 import { saveDraftToStorage } from '@/lib/draft-storage'
 import {
   loadPageDraftFromStorage,
@@ -67,6 +69,24 @@ function normalizeFolderName(input: string) {
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '')
+}
+
+function TrashIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M9 7V5.8C9 4.81 9.81 4 10.8 4H13.2C14.19 4 15 4.81 15 5.8V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M7.5 7L8.2 18.1C8.27 19.14 9.14 19.95 10.19 19.95H13.81C14.86 19.95 15.73 19.14 15.8 18.1L16.5 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 function getDatePartsWithOffset(offsetHours: number) {
@@ -173,30 +193,20 @@ export default function PageEditorPage() {
   const card: React.CSSProperties = {
     border: '1px solid var(--border)',
     borderRadius: 16,
-    padding: 14,
+    padding: 'clamp(12px, 3vw, 14px)',
     background: 'var(--card)',
     boxShadow: 'var(--shadow)',
   }
 
   const input: React.CSSProperties = {
     width: '100%',
-    padding: '12px 14px',
+    padding: '10px 12px',
     borderRadius: 12,
     border: '1px solid var(--border)',
     background: 'var(--card)',
     color: 'var(--foreground)',
-    fontSize: 16,
+    fontSize: 14,
   }
-
-  const sectionToggleStyle = (open: boolean): React.CSSProperties => ({
-    minWidth: 88,
-    padding: '10px 14px',
-    borderRadius: 999,
-    border: '1px solid var(--border)',
-    background: open ? 'var(--accent)' : 'var(--card)',
-    color: open ? 'var(--accent-contrast)' : 'var(--foreground)',
-    fontWeight: 700,
-  })
 
   useEffect(() => {
     setSettings(loadSiteSettingsFromStorage())
@@ -655,7 +665,7 @@ export default function PageEditorPage() {
 
   if (checkingAuth || loading || !draft) {
     return (
-      <main style={{ padding: 16, maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
+      <main style={{ padding: 'clamp(12px, 3vw, 20px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
         <SiteHeader />
         <section style={card}>
           {checkingAuth
@@ -674,28 +684,28 @@ export default function PageEditorPage() {
   }
 
   return (
-    <main style={{ padding: 16, maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
+    <main style={{ padding: 'clamp(12px, 3vw, 20px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
       <SiteHeader />
 
       <div style={{ display: 'grid', gap: 6 }}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>
+        <h1 style={{ margin: 0, fontSize: 14 }}>
           {draft.mode === 'live' ? (isEnglish ? 'Quick Timeline' : '生活记录') : (isEnglish ? 'Page Editor' : '页面编辑')}
         </h1>
-        <div style={{ color: 'var(--muted)', fontSize: 15, fontWeight: 500, wordBreak: 'break-all' }}>
+          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500, wordBreak: 'break-all' }}>
           {isEnglish ? 'Target file: ' : '目标文件：'}
           {draft.filePath}
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: 15, fontWeight: 500 }}>{status}</div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>{status}</div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12 }}>
-        <button type="button" onClick={() => setActiveTab(activeTab === 'edit' ? 'preview' : 'edit')} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: activeTab === 'edit' ? 'var(--card)' : 'var(--accent)', color: activeTab === 'edit' ? 'var(--foreground)' : 'var(--accent-contrast)', fontWeight: 700 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}>
+        <button type="button" onClick={() => setActiveTab(activeTab === 'edit' ? 'preview' : 'edit')} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: activeTab === 'edit' ? 'var(--card)' : 'var(--accent)', color: activeTab === 'edit' ? 'var(--foreground)' : 'var(--accent-contrast)', fontWeight: 700, fontSize: 14 }}>
           {activeTab === 'edit' ? (isEnglish ? 'Preview' : '预览') : (isEnglish ? 'Edit' : '编辑')}
         </button>
-        <button type="button" onClick={() => { savePageDraftToStorage(draft); setStatus(`${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`) }} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontWeight: 700 }}>
+        <button type="button" onClick={() => { savePageDraftToStorage(draft); setStatus(`${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`) }} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontWeight: 700, fontSize: 14 }}>
           {isEnglish ? 'Save' : '保存'}
         </button>
-        <button type="button" onClick={() => setShowConfirm(true)} disabled={publishing} style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontWeight: 700 }}>
+        <button type="button" onClick={() => setShowConfirm(true)} disabled={publishing} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontWeight: 700, fontSize: 14 }}>
           {publishing ? (isEnglish ? 'Publishing...' : '发布中...') : (isEnglish ? 'Publish' : '发布')}
         </button>
         <ThemeToggle />
@@ -707,7 +717,7 @@ export default function PageEditorPage() {
         <div style={{ display: 'grid', gap: 20 }}>
           {draft.mode === 'live' ? (
             <section style={card}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Quick Entry' : '快速记录'}</h2>
+              <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Quick Entry' : '快速记录'}</h2>
               <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
                 <textarea
                   ref={entryRef}
@@ -757,19 +767,15 @@ export default function PageEditorPage() {
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
                   {isEnglish ? 'A timestamp tag will be added automatically. Keep the first line as `## Your Title`.' : '会自动附带时间戳标签。请保持第一行是 `## 标题`。'}
                 </div>
-                <button type="button" onClick={addEntry} style={{ padding: '13px 16px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontWeight: 700 }}>
-                  {isEnglish ? 'Add New Entry' : '添加新记录'}
-                </button>
+                <IconButton label={isEnglish ? 'Add new entry' : '添加新记录'} icon={<PlusIcon />} onClick={addEntry} active />
               </div>
             </section>
           ) : null}
 
           <section style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Images' : '图片'}</h2>
-              <button type="button" onClick={() => setImagesOpen((prev) => !prev)} style={sectionToggleStyle(imagesOpen)}>
-                {imagesOpen ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
-              </button>
+              <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Images' : '图片'}</h2>
+              <SectionToggleButton open={imagesOpen} onClick={() => setImagesOpen((prev) => !prev)} label={imagesOpen ? (isEnglish ? 'Collapse images section' : '收起图片区域') : (isEnglish ? 'Expand images section' : '展开图片区域')} />
             </div>
             {imagesOpen ? (
               <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
@@ -849,12 +855,10 @@ export default function PageEditorPage() {
 
           <section style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>
+              <h2 style={{ margin: 0, fontSize: 14 }}>
                 {draft.mode === 'live' ? (isEnglish ? 'Entries' : '记录列表') : (isEnglish ? 'Page Content' : '页面内容')}
               </h2>
-              <button type="button" onClick={() => draft.mode === 'live' ? setEntriesOpen((prev) => !prev) : setPageContentOpen((prev) => !prev)} style={sectionToggleStyle(draft.mode === 'live' ? entriesOpen : pageContentOpen)}>
-                {(draft.mode === 'live' ? entriesOpen : pageContentOpen) ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
-              </button>
+              <SectionToggleButton open={draft.mode === 'live' ? entriesOpen : pageContentOpen} onClick={() => draft.mode === 'live' ? setEntriesOpen((prev) => !prev) : setPageContentOpen((prev) => !prev)} label={(draft.mode === 'live' ? entriesOpen : pageContentOpen) ? (isEnglish ? 'Collapse content section' : '收起内容区域') : (isEnglish ? 'Expand content section' : '展开内容区域')} />
             </div>
             {draft.mode === 'live' ? (
               entriesOpen ? (
@@ -863,12 +867,10 @@ export default function PageEditorPage() {
                     <div key={entry.id} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card-muted)', display: 'grid', gap: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0, flex: 1 }}>
-                          <input type="text" value={entry.title} onChange={(event) => updateEntry(entry.id, { title: event.target.value })} style={{ minWidth: 180, flex: '1 1 220px', padding: '8px 10px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 700 }} />
-                          {entry.timestamp ? <div style={{ padding: '6px 10px', borderRadius: 999, background: 'var(--accent-soft)', color: 'var(--accent-soft-text)', fontSize: 12, fontWeight: 700 }}>{entry.timestamp}</div> : null}
+                          <input type="text" value={entry.title} onChange={(event) => updateEntry(entry.id, { title: event.target.value })} style={{ minWidth: 160, flex: '1 1 220px', padding: '7px 10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: 13, fontWeight: 700 }} />
+                          <input type="text" value={entry.timestamp || ''} onChange={(event) => updateEntry(entry.id, { timestamp: event.target.value })} placeholder={isEnglish ? 'Timestamp' : '时间'} style={{ minWidth: 118, flex: '0 1 160px', padding: '7px 10px', borderRadius: 999, border: '1px solid var(--border)', background: 'var(--accent-soft)', color: 'var(--accent-soft-text)', fontSize: 12, fontWeight: 700 }} />
                         </div>
-                        <button type="button" onClick={() => deleteEntry(entry.id)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--danger) 36%, var(--border) 64%)', background: 'var(--card)', color: 'var(--danger)', fontWeight: 700 }}>
-                          {isEnglish ? 'Delete' : '删除'}
-                        </button>
+                        <IconButton label={isEnglish ? 'Delete entry' : '删除记录'} icon={<TrashIcon />} onClick={() => deleteEntry(entry.id)} style={{ color: 'var(--danger)', border: '1px solid color-mix(in srgb, var(--danger) 36%, var(--border) 64%)' }} />
                       </div>
                       <textarea value={entry.content} onChange={(event) => updateEntry(entry.id, { content: event.target.value })} rows={5} style={{ ...input, minHeight: 150, resize: 'vertical', lineHeight: 1.7 }} />
                     </div>
@@ -907,7 +909,7 @@ export default function PageEditorPage() {
                       }
                     }}
                     rows={12}
-                    style={{ ...input, marginTop: 14, minHeight: 320, resize: 'none', overflow: 'hidden', lineHeight: 1.7, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+                    style={{ ...input, marginTop: 14, minHeight: 320, resize: 'none', overflow: 'hidden', lineHeight: 1.7 }}
                   />
                   {slashState.open && slashState.target === 'body' ? (
                     <div style={{ position: 'fixed', top: slashMenuPos.top, left: slashMenuPos.left, width: 240, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', boxShadow: 'var(--shadow)', overflow: 'hidden', zIndex: 150 }}>
@@ -935,14 +937,8 @@ export default function PageEditorPage() {
 
           <section style={card}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Frontmatter' : 'Frontmatter 设置'}</h2>
-              <button
-                type="button"
-                onClick={() => setFrontmatterOpen((prev) => !prev)}
-                style={sectionToggleStyle(frontmatterOpen)}
-              >
-                {frontmatterOpen ? (isEnglish ? 'Collapse' : '收起') : isEnglish ? 'Expand' : '展开'}
-              </button>
+              <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Frontmatter' : 'Frontmatter 设置'}</h2>
+              <SectionToggleButton open={frontmatterOpen} onClick={() => setFrontmatterOpen((prev) => !prev)} label={frontmatterOpen ? (isEnglish ? 'Collapse frontmatter section' : '收起 Frontmatter 区域') : (isEnglish ? 'Expand frontmatter section' : '展开 Frontmatter 区域')} />
             </div>
             {frontmatterOpen ? (
               <>
@@ -951,7 +947,7 @@ export default function PageEditorPage() {
                     ? 'Only edit the fields here. Do not type the wrapping --- or +++ lines manually.'
                     : '这里只需要填写字段内容，不要手动输入外层的 --- 或 +++ 横杠。'}
                 </div>
-                <textarea value={draft.frontmatterRaw} onChange={(event) => updateDraft((current) => ({ ...current, frontmatterRaw: event.target.value }))} rows={8} style={{ ...input, marginTop: 14, minHeight: 180, resize: 'vertical', lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+                <textarea value={draft.frontmatterRaw} onChange={(event) => updateDraft((current) => ({ ...current, frontmatterRaw: event.target.value }))} rows={8} style={{ ...input, marginTop: 14, minHeight: 180, resize: 'vertical', lineHeight: 1.6 }} />
               </>
             ) : null}
           </section>
@@ -959,14 +955,8 @@ export default function PageEditorPage() {
           {draft.mode === 'live' ? (
             <section style={card}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Transfer To Draft' : '一键转移页面为文章草稿'}</h2>
-                <button
-                  type="button"
-                  onClick={() => setTransferOpen((prev) => !prev)}
-                  style={sectionToggleStyle(transferOpen)}
-                >
-                  {transferOpen ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
-                </button>
+                <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Transfer To Draft' : '一键转移页面为文章草稿'}</h2>
+                <SectionToggleButton open={transferOpen} onClick={() => setTransferOpen((prev) => !prev)} label={transferOpen ? (isEnglish ? 'Collapse transfer section' : '收起转移区域') : (isEnglish ? 'Expand transfer section' : '展开转移区域')} />
               </div>
               {transferOpen ? (
                 <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
@@ -1007,13 +997,13 @@ export default function PageEditorPage() {
 
       {showConfirm ? (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15, 23, 42, 0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: 12, zIndex: 120 }} onClick={() => !publishing && setShowConfirm(false)}>
-          <div style={{ width: '100%', maxWidth: 820, background: 'var(--card)', borderRadius: 20, padding: 18, boxShadow: '0 20px 40px rgba(0,0,0,0.18)', display: 'grid', gap: 12 }} onClick={(event) => event.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{isEnglish ? 'Publish this page to GitHub?' : '确认将这个页面发布到 GitHub？'}</div>
+          <div style={{ width: '100%', maxWidth: 820, background: 'var(--card)', borderRadius: 18, padding: 14, boxShadow: '0 20px 40px rgba(0,0,0,0.18)', display: 'grid', gap: 10 }} onClick={(event) => event.stopPropagation()}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? 'Publish this page to GitHub?' : '确认将这个页面发布到 GitHub？'}</div>
             <div style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>{isEnglish ? 'Target file: ' : '目标文件：'}{draft.filePath}</div>
-            <button type="button" onClick={publish} disabled={publishing} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 16, fontWeight: 700 }}>
+            <button type="button" onClick={publish} disabled={publishing} style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontSize: 14, fontWeight: 700 }}>
               {publishing ? (isEnglish ? 'Submitting to GitHub...' : '正在提交到 GitHub...') : (isEnglish ? 'Confirm Publish' : '确认发布')}
             </button>
-            <button type="button" onClick={() => setShowConfirm(false)} disabled={publishing} style={{ width: '100%', padding: '14px 16px', borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: 16, fontWeight: 600 }}>
+            <button type="button" onClick={() => setShowConfirm(false)} disabled={publishing} style={{ width: '100%', padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontSize: 14, fontWeight: 600 }}>
               {isEnglish ? 'Cancel' : '取消'}
             </button>
           </div>

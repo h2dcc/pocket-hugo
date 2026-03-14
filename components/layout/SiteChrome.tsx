@@ -10,15 +10,15 @@ export function SiteHeader() {
   return (
     <section
       style={{
-        borderRadius: 20,
-        padding: 22,
+        borderRadius: 18,
+        padding: 'clamp(12px, 3vw, 18px)',
         background:
           'linear-gradient(145deg, color-mix(in srgb, var(--hero-start) 90%, white 10%) 0%, color-mix(in srgb, var(--hero-end) 82%, white 18%) 100%)',
         color: 'var(--hero-text)',
         boxShadow: 'var(--shadow)',
         border: '1px solid var(--hero-border)',
         display: 'grid',
-        gap: 10,
+        gap: 8,
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -27,8 +27,8 @@ export function SiteHeader() {
         style={{
           position: 'absolute',
           inset: 'auto -30px -40px auto',
-          width: 160,
-          height: 160,
+          width: 108,
+          height: 108,
           borderRadius: '50%',
           background: 'var(--hero-orb)',
           filter: 'blur(8px)',
@@ -42,31 +42,33 @@ export function SiteHeader() {
           display: 'inline-flex',
           alignItems: 'center',
           width: 'fit-content',
-          padding: '6px 10px',
+          padding: '4px 8px',
           borderRadius: 999,
           background: 'var(--hero-chip)',
           color: 'var(--hero-chip-text)',
-          fontSize: 12,
+          fontSize: 10,
           fontWeight: 700,
           letterSpacing: 0.3,
         }}
       >
-        {isEnglish ? 'Mobile-first Hugo workflow' : '手机优先 Hugo 工作流'}
+        {isEnglish ? 'Mobile-first Hugo workflow' : '可能是最好的 Hugo 编辑器'}
       </div>
       <Link
         href="/"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
-          gap: 12,
+          gap: 8,
           color: 'inherit',
           textDecoration: 'none',
           position: 'relative',
           zIndex: 1,
         }}
       >
-        <BrandMark size={42} />
-        <h1 style={{ margin: 0, fontSize: 30, letterSpacing: -0.6 }}>PocketHugo</h1>
+        <BrandMark size={32} />
+        <h1 style={{ margin: 0, fontSize: 'clamp(20px, 5vw, 26px)', letterSpacing: -0.45 }}>
+          PocketHugo
+        </h1>
       </Link>
       <p
         style={{
@@ -74,7 +76,8 @@ export function SiteHeader() {
           marginBottom: 0,
           color: 'var(--hero-subtitle)',
           maxWidth: 640,
-          lineHeight: 1.7,
+          lineHeight: 1.55,
+          fontSize: 'clamp(12px, 3vw, 14px)',
           position: 'relative',
           zIndex: 1,
         }}

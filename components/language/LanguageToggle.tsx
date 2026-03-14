@@ -1,5 +1,6 @@
 'use client'
 
+import IconButton from '@/components/ui/IconButton'
 import { useLanguage } from '@/lib/use-language'
 
 function LanguageIcon() {
@@ -24,25 +25,12 @@ export default function LanguageToggle() {
   }
 
   return (
-    <button
-      type="button"
+    <IconButton
+      label={isEnglish ? 'Switch language to Chinese' : '切换语言到 English'}
       onClick={handleToggle}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '10px 14px',
-        borderRadius: 999,
-        border: '1px solid var(--border)',
-        background: 'var(--card)',
-        color: 'var(--foreground)',
-        cursor: 'pointer',
-        fontSize: 14,
-        fontWeight: 700,
-      }}
-    >
-      <LanguageIcon />
-      <span>{isEnglish ? '中文' : 'English'}</span>
-    </button>
+      icon={<LanguageIcon />}
+      badge={language === 'en' ? 'EN' : '中'}
+      active={language === 'zh'}
+    />
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useSyncExternalStore } from 'react'
+import IconButton from '@/components/ui/IconButton'
 import { THEME_CHANGE_EVENT, THEME_STORAGE_KEY, type ThemeMode } from '@/lib/theme'
 import { useLanguage } from '@/lib/use-language'
 
@@ -14,7 +15,7 @@ function ThemeIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M12 3V5M12 19V21M4.9 4.9L6.3 6.3M17.7 17.7L19.1 19.1M3 12H5M19 12H21M4.9 19.1L6.3 17.7M17.7 6.3L19.1 4.9M16 12A4 4 0 1 1 8 12A4 4 0 0 1 16 12Z"
+        d="M20 15.2A7.2 7.2 0 1 1 12.8 4 5.8 5.8 0 0 0 20 15.2Z"
         stroke="currentColor"
         strokeWidth="1.8"
         strokeLinecap="round"
@@ -48,33 +49,19 @@ export default function ThemeToggle() {
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleToggle}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '10px 14px',
-        borderRadius: 999,
-        border: '1px solid var(--border)',
-        background: 'var(--card)',
-        color: 'var(--foreground)',
-        cursor: 'pointer',
-        fontSize: 14,
-        fontWeight: 700,
-      }}
-    >
-      <ThemeIcon />
-      <span>
-        {theme === 'light'
+    <IconButton
+      label={
+        theme === 'light'
           ? isEnglish
-            ? 'Dark Mode'
-            : '深色模式'
+            ? 'Switch to dark mode'
+            : '切换到深色模式'
           : isEnglish
-            ? 'Light Mode'
-            : '浅色模式'}
-      </span>
-    </button>
+            ? 'Switch to light mode'
+            : '切换到浅色模式'
+      }
+      onClick={handleToggle}
+      icon={<ThemeIcon />}
+      active={theme === 'dark'}
+    />
   )
 }

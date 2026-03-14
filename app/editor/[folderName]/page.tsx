@@ -6,6 +6,8 @@ import ImageUploader from '@/components/post/ImageUploader'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import IconButton from '@/components/ui/IconButton'
+import SectionToggleButton from '@/components/ui/SectionToggleButton'
 import {
   loadDraftFromStorage,
   removeDraftFromStorage,
@@ -75,6 +77,14 @@ function buildStandaloneImageBlock(markdown: string) {
 
 function normalizeFieldKey(value: string) {
   return value.trim().toLowerCase()
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
 }
 
 function parseEnglishCommaList(value: string) {
@@ -209,19 +219,19 @@ export default function EditorPage() {
   const cardStyle: React.CSSProperties = {
     border: '1px solid var(--border)',
     borderRadius: 16,
-    padding: 14,
+    padding: 'clamp(12px, 3vw, 14px)',
     background: 'var(--card)',
     boxShadow: 'var(--shadow)',
   }
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '12px 14px',
+    padding: '10px 12px',
     marginTop: 8,
     borderRadius: 10,
     border: '1px solid var(--border)',
     outline: 'none',
-    fontSize: 16,
+    fontSize: 14,
     background: 'var(--card)',
     color: 'var(--foreground)',
   }
@@ -234,7 +244,7 @@ export default function EditorPage() {
 
   const sectionTitleStyle: React.CSSProperties = {
     margin: 0,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 700,
   }
 
@@ -786,7 +796,7 @@ export default function EditorPage() {
 
   if (checkingAuth || !draft) {
     return (
-      <main style={{ padding: 'clamp(16px, 3vw, 28px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
+      <main style={{ padding: 'clamp(12px, 3vw, 24px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
         <SiteHeader />
         <h1>{isEnglish ? 'Edit Post' : '编辑文章'}</h1>
         <p>
@@ -804,9 +814,9 @@ export default function EditorPage() {
   }
 
   return (
-    <main
+      <main
       style={{
-        padding: 16,
+        padding: 'clamp(12px, 3vw, 20px)',
         maxWidth: 1080,
         margin: '0 auto',
         display: 'grid',
@@ -816,32 +826,33 @@ export default function EditorPage() {
       <SiteHeader />
 
       <div style={{ display: 'grid', gap: 6 }}>
-        <h1 style={{ margin: 0, fontSize: 24 }}>{isEnglish ? 'Edit Post' : '编辑文章'}</h1>
-        <div style={{ color: 'var(--muted)', fontSize: 15, wordBreak: 'break-all', fontWeight: 500 }}>
+        <h1 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Edit Post' : '编辑文章'}</h1>
+        <div style={{ color: 'var(--muted)', fontSize: 12, wordBreak: 'break-all', fontWeight: 500 }}>
           {isEnglish ? 'Folder: ' : '文件夹：'}
           {draft.folderName}
         </div>
-        <div style={{ color: 'var(--muted)', fontSize: 15, fontWeight: 500 }}>{status}</div>
+        <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>{status}</div>
       </div>
 
       <div
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-          gap: 12,
+          gap: 10,
         }}
       >
         <button
           type="button"
           onClick={() => setActiveTab(activeTab === 'edit' ? 'preview' : 'edit')}
           style={{
-            padding: '12px 14px',
+            padding: '10px 12px',
             borderRadius: 12,
             border: '1px solid var(--border)',
             background: activeTab === 'edit' ? 'var(--card)' : 'var(--accent)',
             color: activeTab === 'edit' ? 'var(--foreground)' : 'var(--accent-contrast)',
             cursor: 'pointer',
             fontWeight: 700,
+            fontSize: 14,
           }}
         >
           {activeTab === 'edit' ? (isEnglish ? 'Preview' : '预览') : isEnglish ? 'Edit' : '编辑'}
@@ -851,13 +862,14 @@ export default function EditorPage() {
           type="button"
           onClick={handleManualSave}
           style={{
-            padding: '12px 14px',
+            padding: '10px 12px',
             borderRadius: 12,
             border: '1px solid var(--border)',
             background: 'var(--card)',
             color: 'var(--foreground)',
             cursor: 'pointer',
             fontWeight: 700,
+            fontSize: 14,
           }}
         >
           {isEnglish ? 'Save' : '保存'}
@@ -868,7 +880,7 @@ export default function EditorPage() {
           onClick={handlePublishClick}
           disabled={publishing}
           style={{
-            padding: '12px 14px',
+            padding: '10px 12px',
             borderRadius: 12,
             border: '1px solid var(--accent)',
             background: 'var(--accent)',
@@ -876,6 +888,7 @@ export default function EditorPage() {
             cursor: publishing ? 'not-allowed' : 'pointer',
             opacity: publishing ? 0.7 : 1,
             fontWeight: 700,
+            fontSize: 14,
           }}
         >
           {publishing ? (isEnglish ? 'Publishing...' : '发布中...') : isEnglish ? 'Publish' : '发布'}
@@ -912,23 +925,7 @@ export default function EditorPage() {
               }}
             >
               <h2 style={sectionTitleStyle}>{isEnglish ? 'Basic Info' : '基本信息'}</h2>
-              <button
-                type="button"
-                onClick={() => setBasicInfoOpen((prev) => !prev)}
-                style={{
-                  minWidth: 88,
-                  padding: '10px 14px',
-                  borderRadius: 999,
-                  border: '1px solid var(--border)',
-                  background: basicInfoOpen ? 'var(--accent)' : 'var(--card)',
-                  color: basicInfoOpen ? 'var(--accent-contrast)' : 'var(--foreground)',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                {basicInfoOpen ? (isEnglish ? 'Collapse' : '收起') : isEnglish ? 'Expand' : '展开'}
-              </button>
+              <SectionToggleButton open={basicInfoOpen} onClick={() => setBasicInfoOpen((prev) => !prev)} label={basicInfoOpen ? (isEnglish ? 'Collapse basic info section' : '收起基本信息区域') : (isEnglish ? 'Expand basic info section' : '展开基本信息区域')} />
             </div>
 
             {basicInfoOpen ? (
@@ -1107,22 +1104,7 @@ export default function EditorPage() {
                         placeholder={isEnglish ? 'Add custom category' : '添加自定义分类'}
                         style={inputStyle}
                       />
-                      <button
-                        type="button"
-                        onClick={addCategoryFromInput}
-                        style={{
-                          marginTop: 8,
-                          padding: '0 14px',
-                          borderRadius: 10,
-                          border: '1px solid var(--accent)',
-                          background: 'var(--accent)',
-                          color: 'var(--accent-contrast)',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Add
-                      </button>
+                      <IconButton label={isEnglish ? 'Add category' : '添加分类'} icon={<PlusIcon />} onClick={addCategoryFromInput} active style={{ marginTop: 8 }} />
                     </div>
                     <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
                       {isEnglish ? 'Tap categories to select/unselect on mobile.' : '手机端可直接点按分类进行选中/取消。'}
@@ -1158,22 +1140,7 @@ export default function EditorPage() {
                         placeholder={isEnglish ? 'Enter tag, use comma for multiple' : '输入标签，多个请用英文逗号'}
                         style={inputStyle}
                       />
-                      <button
-                        type="button"
-                        onClick={addTagsFromInput}
-                        style={{
-                          marginTop: 8,
-                          padding: '0 14px',
-                          borderRadius: 10,
-                          border: '1px solid var(--accent)',
-                          background: 'var(--accent)',
-                          color: 'var(--accent-contrast)',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        {isEnglish ? 'Add' : '添加'}
-                      </button>
+                      <IconButton label={isEnglish ? 'Add tags' : '添加标签'} icon={<PlusIcon />} onClick={addTagsFromInput} active style={{ marginTop: 8 }} />
                     </div>
                     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                       {draft.frontmatter.tags.length ? (
@@ -1269,23 +1236,7 @@ export default function EditorPage() {
                     }}
                   >
                     <div style={labelTitleStyle}>{isEnglish ? 'Custom Frontmatter Fields' : '自定义 Frontmatter 字段'}</div>
-                    <button
-                      type="button"
-                      onClick={addCustomField}
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 999,
-                        border: '1px solid var(--accent)',
-                        background: 'var(--accent)',
-                        color: 'var(--accent-contrast)',
-                        cursor: 'pointer',
-                        fontSize: 20,
-                        lineHeight: 1,
-                      }}
-                    >
-                      +
-                    </button>
+                    <IconButton label={isEnglish ? 'Add custom field' : '添加自定义字段'} icon={<PlusIcon />} onClick={addCustomField} active />
                   </div>
 
                   {manualCustomFields.map((field) => (
@@ -1383,23 +1334,7 @@ export default function EditorPage() {
                   {isEnglish ? `${draft.assets.length} item(s)` : `共 ${draft.assets.length} 张`}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setImagesOpen((prev) => !prev)}
-                style={{
-                  minWidth: 88,
-                  padding: '10px 14px',
-                  borderRadius: 999,
-                  border: '1px solid var(--border)',
-                  background: imagesOpen ? 'var(--accent)' : 'var(--card)',
-                  color: imagesOpen ? 'var(--accent-contrast)' : 'var(--foreground)',
-                  cursor: 'pointer',
-                  fontSize: 14,
-                  fontWeight: 700,
-                }}
-              >
-                {imagesOpen ? (isEnglish ? 'Collapse' : '收起') : isEnglish ? 'Expand' : '展开'}
-              </button>
+              <SectionToggleButton open={imagesOpen} onClick={() => setImagesOpen((prev) => !prev)} label={imagesOpen ? (isEnglish ? 'Collapse images section' : '收起图片区域') : (isEnglish ? 'Expand images section' : '展开图片区域')} />
             </div>
 
             {imagesOpen ? (
@@ -1622,23 +1557,7 @@ export default function EditorPage() {
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>
                   {draft.body.length} {isEnglish ? 'characters' : '字符'}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setBodyOpen((prev) => !prev)}
-                  style={{
-                    minWidth: 88,
-                    padding: '10px 14px',
-                    borderRadius: 999,
-                    border: '1px solid var(--border)',
-                    background: bodyOpen ? 'var(--accent)' : 'var(--card)',
-                    color: bodyOpen ? 'var(--accent-contrast)' : 'var(--foreground)',
-                    cursor: 'pointer',
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                >
-                    {bodyOpen ? (isEnglish ? 'Collapse' : '收起') : isEnglish ? 'Expand' : '展开'}
-                </button>
+                <SectionToggleButton open={bodyOpen} onClick={() => setBodyOpen((prev) => !prev)} label={bodyOpen ? (isEnglish ? 'Collapse body section' : '收起正文区域') : (isEnglish ? 'Expand body section' : '展开正文区域')} />
               </div>
             </div>
 
@@ -1685,7 +1604,6 @@ export default function EditorPage() {
                   style={{
                     ...inputStyle,
                     marginTop: 14,
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                     minHeight: 320,
                     resize: 'none',
                     overflow: 'hidden',
@@ -1760,7 +1678,7 @@ export default function EditorPage() {
                   <div style={{ fontSize: 12, color: 'var(--muted)', letterSpacing: 1 }}>
                     {isEnglish ? 'PREVIEW' : '预览'}
                   </div>
-                <h2 style={{ margin: 0, fontSize: 28, lineHeight: 1.25 }}>
+                <h2 style={{ margin: 0, fontSize: 14, lineHeight: 1.35 }}>
                   {draft.frontmatter.title || (isEnglish ? 'Untitled Post' : '未填写标题')}
                 </h2>
               </div>
@@ -1803,7 +1721,6 @@ export default function EditorPage() {
                 marginTop: 14,
                 whiteSpace: 'pre-wrap',
                 wordBreak: 'break-word',
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
                 fontSize: 13,
                 lineHeight: 1.6,
                 background: 'var(--markdown-code-bg)',
@@ -1850,7 +1767,7 @@ export default function EditorPage() {
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div style={{ fontSize: 18, fontWeight: 700 }}>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>
               {isEnglish ? 'Publish to GitHub?' : '确认发布到 GitHub？'}
             </div>
             <div style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>
@@ -1873,7 +1790,7 @@ export default function EditorPage() {
                   border: '1px solid var(--accent)',
                   background: 'var(--accent)',
                   color: 'var(--accent-contrast)',
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 700,
                   cursor: publishing ? 'not-allowed' : 'pointer',
                   opacity: publishing ? 0.75 : 1,
@@ -1892,7 +1809,7 @@ export default function EditorPage() {
                   border: '1px solid var(--border)',
                   background: 'var(--card)',
                   color: 'var(--foreground)',
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 600,
                   cursor: publishing ? 'not-allowed' : 'pointer',
                 }}

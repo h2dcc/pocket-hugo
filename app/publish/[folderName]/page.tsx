@@ -67,7 +67,7 @@ function PublishResultContent() {
           gap: 8,
         }}
       >
-        <h1 style={{ margin: 0, fontSize: 28 }}>{isEnglish ? 'Published Successfully' : '发布成功'}</h1>
+        <h1 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Published Successfully' : '发布成功'}</h1>
         <p style={{ color: 'var(--muted)', lineHeight: 1.7 }}>
           {isEnglish
             ? 'The article and all related files from this publish have been committed to GitHub.'
@@ -76,7 +76,7 @@ function PublishResultContent() {
       </section>
 
       <section style={{ ...cardStyle, display: 'grid', gap: 12 }}>
-        <div style={{ display: 'grid', gap: 10, fontSize: 15 }}>
+        <div style={{ display: 'grid', gap: 10, fontSize: 14 }}>
           <div>
             <strong>{isEnglish ? 'Post Folder: ' : '文章目录：'}</strong>
             {folderName}

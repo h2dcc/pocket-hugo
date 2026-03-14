@@ -49,8 +49,8 @@
 
 .intro p {
   max-width: 440px;
-  font-size: 18px;
-  line-height: 32px;
+  font-size: 14px;
+  line-height: 24px;
   text-wrap: balance;
   color: var(--text-secondary);
 }

@@ -40,19 +40,28 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         const result = await response.json()
 
         if (!response.ok || !result.ok) {
-          throw new Error(result.error || (isEnglish ? 'Failed to load published posts' : '读取文章列表失败'))
+          throw new Error(
+            result.error ||
+              (isEnglish ? 'Failed to load published posts' : '读取已发布文章失败'),
+          )
         }
 
         setPosts(result.posts || [])
         setRepoLabel(result.repo && result.basePath ? `${result.repo} / ${result.basePath}` : '')
       } catch (error) {
-        setError(error instanceof Error ? error.message : isEnglish ? 'Failed to load published posts' : '读取文章列表失败')
+        setError(
+          error instanceof Error
+            ? error.message
+            : isEnglish
+              ? 'Failed to load published posts'
+              : '读取已发布文章失败',
+        )
       } finally {
         setLoading(false)
       }
     }
 
-    fetchPosts()
+    void fetchPosts()
   }, [enabled, reloadKey, isEnglish])
 
   const filteredPosts = useMemo(() => {
@@ -75,13 +84,15 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       const result = await response.json()
 
       if (!response.ok || !result.ok) {
-        throw new Error(result.error || (isEnglish ? 'Failed to load post' : '读取失败'))
+        throw new Error(result.error || (isEnglish ? 'Failed to load post' : '读取文章失败'))
       }
 
       localStorage.setItem(`draft:${folderName}`, JSON.stringify(result.draft))
       onLoaded(folderName)
     } catch (error) {
-      setError(error instanceof Error ? error.message : isEnglish ? 'Failed to load post' : '读取失败')
+      setError(
+        error instanceof Error ? error.message : isEnglish ? 'Failed to load post' : '读取文章失败',
+      )
     } finally {
       setLoadingPost('')
     }
@@ -92,14 +103,14 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       style={{
         border: '1px solid var(--border)',
         borderRadius: 16,
-        padding: 16,
+        padding: 14,
         background: 'var(--card-muted)',
       }}
     >
-      <h3 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Published Posts' : '已发布文章'}</h3>
+      <h3 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Published Posts' : '已发布文章'}</h3>
 
       {!enabled ? (
-        <div style={{ marginTop: 12, color: 'var(--muted)', fontSize: 14, lineHeight: 1.6 }}>
+        <div style={{ marginTop: 12, color: 'var(--muted)', fontSize: 13, lineHeight: 1.6 }}>
           {isEnglish
             ? 'Sign in to GitHub and save a repository config to browse remote posts here.'
             : '登录 GitHub 并保存仓库配置后，这里会显示远程文章列表。'}
@@ -107,7 +118,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       ) : null}
 
       {repoLabel ? (
-        <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 13, wordBreak: 'break-all' }}>
+        <div style={{ marginTop: 8, color: 'var(--muted)', fontSize: 12, wordBreak: 'break-all' }}>
           {isEnglish ? 'Current source: ' : '当前来源：'}
           {repoLabel}
         </div>
@@ -118,14 +129,14 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder={isEnglish ? 'Search folder name' : '搜索 folderName'}
+          placeholder={isEnglish ? 'Search folder name' : '搜索目录名'}
           disabled={!enabled}
           style={{
             width: '100%',
-            padding: '13px 14px',
-            borderRadius: 14,
+            padding: '10px 12px',
+            borderRadius: 12,
             border: '1px solid var(--border)',
-            fontSize: 16,
+            fontSize: 14,
             background: 'var(--card)',
             color: 'var(--foreground)',
             opacity: enabled ? 1 : 0.6,
@@ -140,7 +151,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       ) : null}
       {error ? <div style={{ marginTop: 12, color: 'var(--danger)' }}>{error}</div> : null}
 
-      <div style={{ display: 'grid', gap: 10, marginTop: 14, maxHeight: 420, overflowY: 'auto' }}>
+      <div style={{ display: 'grid', gap: 8, marginTop: 14, maxHeight: 420, overflowY: 'auto' }}>
         {filteredPosts.map((post) => (
           <button
             key={post.name}
@@ -149,22 +160,17 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
             disabled={!enabled || loadingPost === post.name}
             style={{
               textAlign: 'left',
-              padding: '14px 14px',
-              borderRadius: 14,
+              padding: '10px 12px',
+              borderRadius: 12,
               border: '1px solid var(--border)',
               background: 'var(--card)',
               color: 'var(--foreground)',
               cursor: 'pointer',
-              display: 'grid',
-              gap: 4,
+              fontSize: 14,
+              fontWeight: 700,
             }}
           >
-            <span style={{ fontSize: 15, fontWeight: 700 }}>
-              {loadingPost === post.name ? (isEnglish ? 'Loading...' : '读取中...') : post.name}
-            </span>
-            <span style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>
-              {post.path}
-            </span>
+            {loadingPost === post.name ? (isEnglish ? 'Loading...' : '读取中...') : post.name}
           </button>
         ))}
 
@@ -172,15 +178,15 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
           <div
             style={{
               color: 'var(--muted)',
-              fontSize: 14,
+              fontSize: 13,
               lineHeight: 1.6,
               padding: 12,
-              borderRadius: 14,
+              borderRadius: 12,
               border: '1px dashed var(--border)',
               background: 'var(--card)',
             }}
           >
-            {isEnglish ? 'No matching posts were found under the current path.' : '当前路径下还没有可匹配的文章。'}
+            {isEnglish ? 'No matching posts were found under the current path.' : '当前路径下没有匹配的文章。'}
           </div>
         ) : null}
       </div>

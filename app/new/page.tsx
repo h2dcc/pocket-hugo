@@ -99,7 +99,7 @@ export default function NewPostPage() {
     marginTop: 8,
     borderRadius: 10,
     border: '1px solid var(--border)',
-    fontSize: 16,
+    fontSize: 14,
     background: 'var(--card)',
     color: 'var(--foreground)',
   }
@@ -113,7 +113,7 @@ export default function NewPostPage() {
       <SiteHeader />
 
       <div style={{ display: 'grid', gap: 16, marginTop: 24 }}>
-        <div style={{ color: 'var(--foreground)', fontSize: 18, fontWeight: 700 }}>
+        <div style={{ color: 'var(--foreground)', fontSize: 14, fontWeight: 700 }}>
           {isEnglish ? 'Create New Post' : '新建文章'}
         </div>
         <div style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>
@@ -208,7 +208,7 @@ export default function NewPostPage() {
               background: 'var(--card-muted)',
               borderRadius: 12,
               wordBreak: 'break-all',
-              fontSize: 16,
+              fontSize: 14,
               border: '1px solid var(--border)',
             }}
           >
@@ -242,7 +242,7 @@ export default function NewPostPage() {
             color: 'var(--accent-contrast)',
             border: 'none',
             borderRadius: 12,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: 700,
             width: '100%',
             marginTop: 10,

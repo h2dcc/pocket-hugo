@@ -8,9 +8,41 @@ import {
   type SiteSettings,
 } from '@/lib/site-settings'
 import { useLanguage } from '@/lib/use-language'
+import IconButton from '@/components/ui/IconButton'
+import SectionToggleButton from '@/components/ui/SectionToggleButton'
 
 type Props = {
   onSaved?: () => void
+}
+
+function PlusIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ToggleChip(props: { active: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      style={{
+        padding: '5px 10px',
+        borderRadius: 999,
+        border: props.active ? '1px solid var(--accent)' : '1px solid var(--border)',
+        background: props.active ? 'var(--accent-soft)' : 'var(--card)',
+        color: props.active ? 'var(--accent-soft-text)' : 'var(--foreground)',
+        cursor: 'pointer',
+        fontSize: 12,
+        fontWeight: 700,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {props.label}
+    </button>
+  )
 }
 
 function ChoiceButton(props: {
@@ -25,20 +57,18 @@ function ChoiceButton(props: {
       onClick={props.onClick}
       style={{
         textAlign: 'left',
-        padding: '14px 14px',
-        borderRadius: 14,
+        padding: '10px 12px',
+        borderRadius: 12,
         border: props.active ? '1px solid var(--accent)' : '1px solid var(--border)',
         background: props.active ? 'var(--accent)' : 'var(--card)',
         color: props.active ? 'var(--accent-contrast)' : 'var(--foreground)',
         cursor: 'pointer',
         display: 'grid',
-        gap: 4,
+        gap: 3,
       }}
     >
-      <span style={{ fontSize: 15, fontWeight: 700 }}>{props.label}</span>
-      <span style={{ fontSize: 12, opacity: 0.82, lineHeight: 1.5 }}>
-        {props.description}
-      </span>
+      <span style={{ fontSize: 13, fontWeight: 700 }}>{props.label}</span>
+      <span style={{ fontSize: 11, opacity: 0.82, lineHeight: 1.45 }}>{props.description}</span>
     </button>
   )
 }
@@ -54,14 +84,14 @@ function StepButton(props: {
       disabled={props.disabled}
       onClick={props.onClick}
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 10,
+        width: 30,
+        height: 30,
+        borderRadius: 8,
         border: '1px solid var(--border)',
         background: 'var(--card)',
         color: 'var(--foreground)',
         fontWeight: 800,
-        fontSize: 18,
+        fontSize: 14,
         lineHeight: 1,
         cursor: props.disabled ? 'not-allowed' : 'pointer',
         opacity: props.disabled ? 0.5 : 1,
@@ -71,6 +101,51 @@ function StepButton(props: {
     >
       {props.label}
     </button>
+  )
+}
+
+function FieldRow(props: {
+  title: string
+  value: string
+  active: boolean
+  onChange: (value: string) => void
+  onToggle: () => void
+  placeholder?: string
+  visibleLabel: string
+  hiddenLabel: string
+}) {
+  return (
+    <label style={{ display: 'grid', gap: 6 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 10,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: 13, fontWeight: 700 }}>{props.title}</span>
+        <ToggleChip
+          active={props.active}
+          label={props.active ? props.visibleLabel : props.hiddenLabel}
+          onClick={props.onToggle}
+        />
+      </div>
+      <input
+        type="text"
+        value={props.value}
+        onChange={(event) => props.onChange(event.target.value)}
+        placeholder={props.placeholder}
+        style={{
+          padding: '9px 11px',
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          background: 'var(--card)',
+          color: 'var(--foreground)',
+        }}
+      />
+    </label>
   )
 }
 
@@ -187,527 +262,153 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
       style={{
         border: '1px solid var(--border)',
         borderRadius: 16,
-        padding: 16,
+        padding: 14,
         background: 'var(--card)',
         display: 'grid',
-        gap: 16,
+        gap: 14,
         boxShadow: 'var(--shadow)',
       }}
     >
-      <div style={{ order: 0 }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>
+      <div>
+        <h2 style={{ margin: 0, fontSize: 14 }}>
           {isEnglish ? 'Publishing Preferences' : '发布偏好'}
         </h2>
-        <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)', lineHeight: 1.6 }}>
+        <div style={{ marginTop: 6, fontSize: 13, color: 'var(--muted)', lineHeight: 1.55 }}>
           {settings.imageConversionEnabled
             ? isEnglish
-              ? `Convert to WebP by default, max width ${settings.imageMaxWidth}px, quality ${settings.imageQuality.toFixed(2)}.`
-              : `默认压缩并转 WebP，最大宽度 ${settings.imageMaxWidth}px，质量 ${settings.imageQuality.toFixed(2)}。`
+              ? `Default upload: WebP, max width ${settings.imageMaxWidth}px, quality ${settings.imageQuality.toFixed(2)}.`
+              : `默认上传为 WebP，最大宽度 ${settings.imageMaxWidth}px，质量 ${settings.imageQuality.toFixed(2)}。`
             : isEnglish
-              ? 'Keep the original image format by default.'
-              : '默认保留原图格式。'}{' '}
+              ? 'Default upload keeps original image format.'
+              : '默认上传保留原图格式。'}{' '}
           {settings.autoImageNamingEnabled
             ? isEnglish
-              ? 'Auto-number file names.'
-              : '自动编号命名。'
+              ? 'Auto-numbering is enabled.'
+              : '已启用自动编号命名。'
             : isEnglish
-              ? 'Keep original file names.'
+              ? 'Original filenames are kept.'
               : '保留原始文件名。'}
         </div>
-        {status ? (
-          <div style={{ marginTop: 6, fontSize: 13, color: '#1677ff' }}>{status}</div>
-        ) : null}
+        {status ? <div style={{ marginTop: 6, fontSize: 12, color: '#1677ff' }}>{status}</div> : null}
       </div>
 
-      <section
-        style={{
-          order: 1,
-          display: 'grid',
-          gap: 10,
-          padding: 14,
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card-muted)',
-        }}
-      >
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {isEnglish ? '1. Image Conversion' : '1. 图片转换压缩'}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {isEnglish
-              ? 'Better for Hugo page bundles and lighter mobile uploads.'
-              : '更适合 Hugo page bundle，也更适合手机上传。'}
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '1. Image Conversion' : '1. 图片转换压缩'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish ? 'Better for Hugo page bundles and lighter mobile uploads.' : '更适合 Hugo page bundle，也更适合手机上传。'}
           </div>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <ChoiceButton
-            active={settings.imageConversionEnabled}
-            label={isEnglish ? 'Enabled' : '开启'}
-            description={
-              isEnglish ? 'Convert and compress uploads into WebP' : '上传时自动压缩并转为 WebP'
-            }
-            onClick={() => updateSettings({ imageConversionEnabled: true })}
-          />
-          <ChoiceButton
-            active={!settings.imageConversionEnabled}
-            label={isEnglish ? 'Disabled' : '关闭'}
-            description={
-              isEnglish ? 'Keep original format and dimensions' : '保留原图格式和原始尺寸'
-            }
-            onClick={() => updateSettings({ imageConversionEnabled: false })}
-          />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <ChoiceButton active={settings.imageConversionEnabled} label={isEnglish ? 'Enabled' : '开启'} description={isEnglish ? 'Convert and compress uploads into WebP' : '上传时自动压缩并转为 WebP'} onClick={() => updateSettings({ imageConversionEnabled: true })} />
+          <ChoiceButton active={!settings.imageConversionEnabled} label={isEnglish ? 'Disabled' : '关闭'} description={isEnglish ? 'Keep original format and dimensions' : '保留原图格式和原始尺寸'} onClick={() => updateSettings({ imageConversionEnabled: false })} />
         </div>
-
-        <div
-          style={{
-            display: 'grid',
-            gap: 12,
-            opacity: settings.imageConversionEnabled ? 1 : 0.55,
-          }}
-        >
+        <div style={{ display: 'grid', gap: 10, opacity: settings.imageConversionEnabled ? 1 : 0.55 }}>
           <label style={{ display: 'grid', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
               <span style={{ fontWeight: 600 }}>{isEnglish ? 'Max Width' : '最大宽度'}</span>
               <span>{settings.imageMaxWidth}px</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr) 34px', gap: 8, alignItems: 'center' }}>
-              <StepButton
-                disabled={!settings.imageConversionEnabled}
-                label="-"
-                onClick={() => adjustWidth(-1)}
-              />
-              <input
-                type="range"
-                min={640}
-                max={4096}
-                step={1}
-                value={settings.imageMaxWidth}
-                disabled={!settings.imageConversionEnabled}
-                onChange={(e) => updateSettings({ imageMaxWidth: Number(e.target.value) })}
-              />
-              <StepButton
-                disabled={!settings.imageConversionEnabled}
-                label="+"
-                onClick={() => adjustWidth(1)}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '30px minmax(0, 1fr) 30px', gap: 8, alignItems: 'center' }}>
+              <StepButton disabled={!settings.imageConversionEnabled} label="-" onClick={() => adjustWidth(-1)} />
+              <input type="range" min={640} max={4096} step={1} value={settings.imageMaxWidth} disabled={!settings.imageConversionEnabled} onChange={(e) => updateSettings({ imageMaxWidth: Number(e.target.value) })} />
+              <StepButton disabled={!settings.imageConversionEnabled} label="+" onClick={() => adjustWidth(1)} />
             </div>
           </label>
-
           <label style={{ display: 'grid', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 14 }}>
-              <span style={{ fontWeight: 600 }}>{isEnglish ? 'Quality' : '转换质量'}</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
+              <span style={{ fontWeight: 600 }}>{isEnglish ? 'Quality' : '质量'}</span>
               <span>{settings.imageQuality.toFixed(2)}</span>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr) 34px', gap: 8, alignItems: 'center' }}>
-              <StepButton
-                disabled={!settings.imageConversionEnabled}
-                label="-"
-                onClick={() => adjustQuality(-0.01)}
-              />
-              <input
-                type="range"
-                min={0.4}
-                max={1}
-                step={0.01}
-                value={settings.imageQuality}
-                disabled={!settings.imageConversionEnabled}
-                onChange={(e) => updateSettings({ imageQuality: Number(e.target.value) })}
-              />
-              <StepButton
-                disabled={!settings.imageConversionEnabled}
-                label="+"
-                onClick={() => adjustQuality(0.01)}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '30px minmax(0, 1fr) 30px', gap: 8, alignItems: 'center' }}>
+              <StepButton disabled={!settings.imageConversionEnabled} label="-" onClick={() => adjustQuality(-0.01)} />
+              <input type="range" min={0.4} max={1} step={0.01} value={settings.imageQuality} disabled={!settings.imageConversionEnabled} onChange={(e) => updateSettings({ imageQuality: Number(e.target.value) })} />
+              <StepButton disabled={!settings.imageConversionEnabled} label="+" onClick={() => adjustQuality(0.01)} />
             </div>
           </label>
         </div>
       </section>
 
-      <section
-        style={{
-          order: 5,
-          display: 'grid',
-          gap: 10,
-          padding: 14,
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card-muted)',
-        }}
-      >
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {isEnglish ? '5. Categories Preset' : '5. 固定分类设置'}
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '2. Auto Image Naming' : '2. 图片自动命名'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish ? 'Useful when uploading multiple images from a phone.' : '适合手机连续上传多张图片时减少整理成本。'}
           </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {isEnglish
-              ? 'Define reusable categories here. Editor will provide a multi-select dropdown.'
-              : '在这里维护常用分类。编辑器里会提供可多选下拉。'}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <ChoiceButton active={settings.autoImageNamingEnabled} label={isEnglish ? 'Auto Numbering' : '自动编号'} description={isEnglish ? 'Use names like 1.webp and 2.webp' : '使用 1.webp、2.webp 这类名称'} onClick={() => updateSettings({ autoImageNamingEnabled: true })} />
+          <ChoiceButton active={!settings.autoImageNamingEnabled} label={isEnglish ? 'Keep Original' : '保留原名'} description={isEnglish ? 'Keep original names and avoid collisions automatically' : '尽量保留原始文件名并自动避重'} onClick={() => updateSettings({ autoImageNamingEnabled: false })} />
+        </div>
+      </section>
+
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '3. Basic Info Fields' : '3. Basic Info 字段'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish ? 'Title, Date, and Draft are fixed. Use the small chips on the right to control optional fields.' : 'Title、Date、Draft 固定显示，右侧小按钮控制可选字段是否在编辑器显示。'}
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }}>
-          <input
-            type="text"
-            value={categoryInput}
-            onChange={(event) => setCategoryInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault()
-                addCategoryPreset()
-              }
-            }}
-            placeholder={isEnglish ? 'Add category, e.g. notes' : '添加分类，例如 notes'}
-            style={{
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              color: 'var(--foreground)',
-            }}
+        <div style={{ display: 'grid', gap: 8 }}>
+          <FieldRow
+            title={isEnglish ? 'Slug field name' : 'Slug 字段名'}
+            value={settings.frontmatterPreferences.slugFieldName}
+            active={settings.frontmatterPreferences.slugFieldEnabled}
+            onChange={(value) => updateFrontmatterPreference({ slugFieldName: value })}
+            onToggle={() => updateFrontmatterPreference({ slugFieldEnabled: !settings.frontmatterPreferences.slugFieldEnabled })}
+            visibleLabel={isEnglish ? 'Visible' : '显示'}
+            hiddenLabel={isEnglish ? 'Hidden' : '隐藏'}
           />
-          <button
-            type="button"
-            onClick={addCategoryPreset}
-            style={{
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid var(--accent)',
-              background: 'var(--accent)',
-              color: 'var(--accent-contrast)',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            {isEnglish ? 'Add' : '添加'}
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {settings.categoriesPreset.length ? (
-            settings.categoriesPreset.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => removeCategoryPreset(item)}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: 999,
-                  border: '1px solid var(--border)',
-                  background: 'var(--card)',
-                  color: 'var(--foreground)',
-                  cursor: 'pointer',
-                  fontSize: 13,
-                  fontWeight: 600,
-                }}
-                title={isEnglish ? 'Tap to remove' : '点击删除'}
-              >
-                {item} ×
-              </button>
-            ))
-          ) : (
-            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-              {isEnglish ? 'No preset categories yet.' : '还没有固定分类。'}
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section
-        style={{
-          order: 4,
-          display: 'grid',
-          gap: 10,
-          padding: 14,
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card-muted)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {isEnglish ? '4. Frontmatter Timezone' : '4. Frontmatter时区设置'}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {isEnglish
-              ? 'Used for the fixed `date` field when creating a new post.'
-              : '用于新建文章时 frontmatter 固定 date 字段。'}
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '34px minmax(0, 1fr) 34px', gap: 8, alignItems: 'center' }}>
-          <StepButton label="-" onClick={() => adjustTimezone(-1)} />
-          <div
-            style={{
-              padding: '10px 12px',
-              borderRadius: 10,
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              color: 'var(--foreground)',
-              textAlign: 'center',
-              fontWeight: 700,
-            }}
-          >
-            {`UTC${settings.timezoneOffsetHours >= 0 ? '+' : ''}${settings.timezoneOffsetHours}`}
-          </div>
-          <StepButton label="+" onClick={() => adjustTimezone(1)} />
-        </div>
-      </section>
-
-      <section
-        style={{
-          order: 2,
-          display: 'grid',
-          gap: 10,
-          padding: 14,
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card-muted)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {isEnglish ? '2. Auto Image Naming' : '2. 图片自动命名'}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {isEnglish
-              ? 'Useful when uploading multiple images from a phone.'
-              : '适合手机连续上传图片时减少手动整理文件名。'}
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <ChoiceButton
-            active={settings.autoImageNamingEnabled}
-            label={isEnglish ? 'Auto Numbering' : '自动编号'}
-            description={
-              isEnglish ? 'Use names like 1.webp and 2.webp' : '使用 1.webp、2.webp 这类名称'
-            }
-            onClick={() => updateSettings({ autoImageNamingEnabled: true })}
+          <FieldRow
+            title={isEnglish ? 'Categories field name' : 'Categories 字段名'}
+            value={settings.frontmatterPreferences.categoriesFieldName}
+            active={settings.frontmatterPreferences.categoriesFieldEnabled}
+            onChange={(value) => updateFrontmatterPreference({ categoriesFieldName: value })}
+            onToggle={() => updateFrontmatterPreference({ categoriesFieldEnabled: !settings.frontmatterPreferences.categoriesFieldEnabled })}
+            visibleLabel={isEnglish ? 'Visible' : '显示'}
+            hiddenLabel={isEnglish ? 'Hidden' : '隐藏'}
           />
-          <ChoiceButton
-            active={!settings.autoImageNamingEnabled}
-            label={isEnglish ? 'Keep Original' : '保留原名'}
-            description={
-              isEnglish
-                ? 'Reuse original file names and avoid collisions automatically'
-                : '尽量沿用原始文件名并自动避重'
-            }
-            onClick={() => updateSettings({ autoImageNamingEnabled: false })}
+          <FieldRow
+            title={isEnglish ? 'Tags field name' : 'Tags 字段名'}
+            value={settings.frontmatterPreferences.tagsFieldName}
+            active={settings.frontmatterPreferences.tagsFieldEnabled}
+            onChange={(value) => updateFrontmatterPreference({ tagsFieldName: value })}
+            onToggle={() => updateFrontmatterPreference({ tagsFieldEnabled: !settings.frontmatterPreferences.tagsFieldEnabled })}
+            visibleLabel={isEnglish ? 'Visible' : '显示'}
+            hiddenLabel={isEnglish ? 'Hidden' : '隐藏'}
           />
-        </div>
-      </section>
+          <FieldRow
+            title={isEnglish ? 'Cover image field name' : '封面图字段名'}
+            value={settings.frontmatterPreferences.coverImageFieldName}
+            active={settings.frontmatterPreferences.coverImageFieldEnabled}
+            onChange={(value) => updateFrontmatterPreference({ coverImageFieldName: value })}
+            onToggle={() => updateFrontmatterPreference({ coverImageFieldEnabled: !settings.frontmatterPreferences.coverImageFieldEnabled })}
+            visibleLabel={isEnglish ? 'Visible' : '显示'}
+            hiddenLabel={isEnglish ? 'Hidden' : '隐藏'}
+          />
 
-      <section
-        style={{
-          order: 3,
-          display: 'grid',
-          gap: 10,
-          padding: 14,
-          borderRadius: 16,
-          border: '1px solid var(--border)',
-          background: 'var(--card-muted)',
-        }}
-      >
-        <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 15, fontWeight: 700 }}>
-            {isEnglish ? '3. Basic Info Fields' : '3. Basic info 字段设置'}
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-            {isEnglish
-              ? 'Title, Date, and Draft are fixed in editor. Configure optional fields below.'
-              : 'Title、Date、Draft 在编辑器中固定显示。以下仅配置可选字段。'}
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gap: 10 }}>
-          <label style={{ display: 'grid', gap: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>
-              {isEnglish ? 'Slug field name' : 'Slug 字段名'}
+          <div style={{ marginTop: 4, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', overflow: 'hidden' }}>
+            <div style={{ padding: '10px 12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'grid', gap: 2 }}>
+                <span style={{ fontSize: 13, fontWeight: 700 }}>
+                  {isEnglish ? 'More Common Fields' : '更多常用字段'}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                  {isEnglish ? 'Shown in editor Basic Info.' : '会固定出现在编辑器 Basic Info。'}
+                </span>
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <IconButton label={isEnglish ? 'Add common field' : '添加常用字段'} icon={<PlusIcon />} onClick={addExtraBasicField} active />
+                <SectionToggleButton open={extraFieldsOpen} onClick={() => setExtraFieldsOpen((prev) => !prev)} label={extraFieldsOpen ? (isEnglish ? 'Collapse common fields' : '收起常用字段') : (isEnglish ? 'Expand common fields' : '展开常用字段')} />
+              </div>
             </div>
-            <input
-              type="text"
-              value={settings.frontmatterPreferences.slugFieldName}
-              onChange={(event) =>
-                updateFrontmatterPreference({ slugFieldName: event.target.value })
-              }
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-              }}
-            />
-            <ChoiceButton
-              active={settings.frontmatterPreferences.slugFieldEnabled}
-              label={settings.frontmatterPreferences.slugFieldEnabled ? (isEnglish ? 'Show in Editor' : '在编辑器显示') : (isEnglish ? 'Hidden in Editor' : '在编辑器隐藏')}
-              description={isEnglish ? 'If hidden, slug is omitted when publishing.' : '隐藏后发布时将不输出 slug 字段。'}
-              onClick={() =>
-                updateFrontmatterPreference({
-                  slugFieldEnabled: !settings.frontmatterPreferences.slugFieldEnabled,
-                })
-              }
-            />
-          </label>
-
-          <label style={{ display: 'grid', gap: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>
-              {isEnglish ? 'Categories field name' : 'Categories 字段名'}
-            </div>
-            <input
-              type="text"
-              value={settings.frontmatterPreferences.categoriesFieldName}
-              onChange={(event) =>
-                updateFrontmatterPreference({
-                  categoriesFieldName: event.target.value,
-                })
-              }
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-              }}
-            />
-            <ChoiceButton
-              active={settings.frontmatterPreferences.categoriesFieldEnabled}
-              label={settings.frontmatterPreferences.categoriesFieldEnabled ? (isEnglish ? 'Show in Editor' : '在编辑器显示') : (isEnglish ? 'Hidden in Editor' : '在编辑器隐藏')}
-              description={isEnglish ? 'If hidden, categories are omitted when publishing.' : '隐藏后发布时将不输出 categories 字段。'}
-              onClick={() =>
-                updateFrontmatterPreference({
-                  categoriesFieldEnabled:
-                    !settings.frontmatterPreferences.categoriesFieldEnabled,
-                })
-              }
-            />
-          </label>
-
-          <label style={{ display: 'grid', gap: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>
-              {isEnglish ? 'Tags field name' : 'Tags 字段名'}
-            </div>
-            <input
-              type="text"
-              value={settings.frontmatterPreferences.tagsFieldName}
-              onChange={(event) =>
-                updateFrontmatterPreference({ tagsFieldName: event.target.value })
-              }
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-              }}
-            />
-            <ChoiceButton
-              active={settings.frontmatterPreferences.tagsFieldEnabled}
-              label={settings.frontmatterPreferences.tagsFieldEnabled ? (isEnglish ? 'Show in Editor' : '在编辑器显示') : (isEnglish ? 'Hidden in Editor' : '在编辑器隐藏')}
-              description={isEnglish ? 'If hidden, tags are omitted when publishing.' : '隐藏后发布时将不输出 tags 字段。'}
-              onClick={() =>
-                updateFrontmatterPreference({
-                  tagsFieldEnabled: !settings.frontmatterPreferences.tagsFieldEnabled,
-                })
-              }
-            />
-          </label>
-
-          <label style={{ display: 'grid', gap: 6 }}>
-            <div style={{ fontSize: 13, fontWeight: 700 }}>
-              {isEnglish ? 'Cover image field name' : '封面图字段名'}
-            </div>
-            <input
-              type="text"
-              value={settings.frontmatterPreferences.coverImageFieldName}
-              onChange={(event) =>
-                updateFrontmatterPreference({
-                  coverImageFieldName: event.target.value,
-                })
-              }
-              style={{
-                padding: '10px 12px',
-                borderRadius: 10,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-              }}
-            />
-            <ChoiceButton
-              active={settings.frontmatterPreferences.coverImageFieldEnabled}
-              label={settings.frontmatterPreferences.coverImageFieldEnabled ? (isEnglish ? 'Show in Editor' : '在编辑器显示') : (isEnglish ? 'Hidden in Editor' : '在编辑器隐藏')}
-              description={isEnglish ? 'If hidden, cover image field is omitted when publishing.' : '隐藏后发布时将不输出封面图字段。'}
-              onClick={() =>
-                updateFrontmatterPreference({
-                  coverImageFieldEnabled:
-                    !settings.frontmatterPreferences.coverImageFieldEnabled,
-                })
-              }
-            />
-          </label>
-
-          <div
-            style={{
-              marginTop: 6,
-              border: '1px solid var(--border)',
-              borderRadius: 12,
-              background: 'var(--card)',
-              overflow: 'hidden',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setExtraFieldsOpen((prev) => !prev)}
-              style={{
-                width: '100%',
-                padding: '12px 14px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 10,
-                border: 'none',
-                background: 'transparent',
-                color: 'var(--foreground)',
-                cursor: 'pointer',
-                fontWeight: 700,
-                fontSize: 14,
-              }}
-            >
-              <span>
-                {isEnglish
-                  ? 'More Common Fields (Optional)'
-                  : '更多常用字段（可选）'}
-              </span>
-              <span
-                style={{
-                  transform: extraFieldsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                  transition: 'transform 160ms ease',
-                  fontSize: 12,
-                }}
-                aria-hidden="true"
-              >
-                ▼
-              </span>
-            </button>
 
             {extraFieldsOpen ? (
-              <div
-                style={{
-                  borderTop: '1px solid var(--border)',
-                  padding: 12,
-                  display: 'grid',
-                  gap: 10,
-                  background: 'var(--card-muted)',
-                }}
-              >
-                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  {isEnglish
-                    ? 'Add fields that should always appear in editor Basic Info, such as `series`, `aliases`, or `featured-image-alt`.'
-                    : '添加需要固定出现在编辑器 Basic Info 的字段，例如 `series`、`aliases`、`featured-image-alt`。'}
+              <div style={{ borderTop: '1px solid var(--border)', padding: 12, display: 'grid', gap: 10, background: 'var(--card-muted)' }}>
+                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+                  {isEnglish ? 'Examples: `series`, `aliases`, `featured-image-alt`.' : '例如：`series`、`aliases`、`featured-image-alt`。'}
                 </div>
-
                 {settings.frontmatterPreferences.extraBasicInfoFields.map((field) => (
                   <div
                     key={field.id}
@@ -733,13 +434,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
                         })
                       }
                       placeholder={isEnglish ? 'Field key' : '字段名'}
-                      style={{
-                        padding: '10px 12px',
-                        borderRadius: 10,
-                        border: '1px solid var(--border)',
-                        background: 'var(--card)',
-                        color: 'var(--foreground)',
-                      }}
+                      style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
                     />
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8 }}>
                       <select
@@ -749,30 +444,23 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
                             type: event.target.value === 'list' ? 'list' : 'text',
                           })
                         }
-                        style={{
-                          padding: '10px 12px',
-                          borderRadius: 10,
-                          border: '1px solid var(--border)',
-                          background: 'var(--card)',
-                          color: 'var(--foreground)',
-                        }}
+                        style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
                       >
                         <option value="text">{isEnglish ? 'Text' : '文本'}</option>
-                        <option value="list">
-                          {isEnglish ? 'List (comma-separated)' : '列表（逗号分隔）'}
-                        </option>
+                        <option value="list">{isEnglish ? 'List (comma-separated)' : '列表（逗号分隔）'}</option>
                       </select>
                       <button
                         type="button"
                         onClick={() => removeExtraBasicField(field.id)}
                         style={{
-                          padding: '10px 12px',
-                          borderRadius: 10,
+                          padding: '7px 10px',
+                          borderRadius: 999,
                           border: '1px solid color-mix(in srgb, var(--danger) 36%, var(--border) 64%)',
                           background: 'var(--card)',
                           color: 'var(--danger)',
                           fontWeight: 700,
                           cursor: 'pointer',
+                          fontSize: 12,
                         }}
                       >
                         {isEnglish ? 'Remove' : '删除'}
@@ -780,25 +468,85 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
                     </div>
                   </div>
                 ))}
-
-                <button
-                  type="button"
-                  onClick={addExtraBasicField}
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    border: '1px solid var(--accent)',
-                    background: 'var(--card)',
-                    color: 'var(--accent-soft-text)',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {isEnglish ? '+ Add Common Field' : '+ 添加常用字段'}
-                </button>
+                {!settings.frontmatterPreferences.extraBasicInfoFields.length ? (
+                  <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                    {isEnglish ? 'No common fields yet.' : '还没有常用字段。'}
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
+        </div>
+      </section>
+
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '4. Frontmatter Timezone' : '4. Frontmatter 时区'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish ? 'Used for the fixed `date` field when creating a new post.' : '用于新建文章时固定的 `date` 字段。'}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '30px minmax(0, 1fr) 30px', gap: 8, alignItems: 'center' }}>
+          <StepButton label="-" onClick={() => adjustTimezone(-1)} />
+          <div style={{ padding: '9px 11px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', textAlign: 'center', fontWeight: 700 }}>
+            {`UTC${settings.timezoneOffsetHours >= 0 ? '+' : ''}${settings.timezoneOffsetHours}`}
+          </div>
+          <StepButton label="+" onClick={() => adjustTimezone(1)} />
+        </div>
+      </section>
+
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '5. Categories Preset' : '5. 固定分类'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish ? 'Define reusable categories here. Editor will provide quick selection.' : '在这里维护常用分类，编辑器里会提供快捷选择。'}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) auto', gap: 8 }}>
+          <input
+            type="text"
+            value={categoryInput}
+            onChange={(event) => setCategoryInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault()
+                addCategoryPreset()
+              }
+            }}
+            placeholder={isEnglish ? 'Add category, e.g. notes' : '添加分类，例如 notes'}
+            style={{ padding: '9px 11px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)' }}
+          />
+          <IconButton label={isEnglish ? 'Add category preset' : '添加分类预设'} icon={<PlusIcon />} onClick={addCategoryPreset} active />
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {settings.categoriesPreset.length ? (
+            settings.categoriesPreset.map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => removeCategoryPreset(item)}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: '1px solid var(--border)',
+                  background: 'var(--card)',
+                  color: 'var(--foreground)',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                }}
+                title={isEnglish ? 'Tap to remove' : '点击删除'}
+              >
+                {item} x
+              </button>
+            ))
+          ) : (
+            <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+              {isEnglish ? 'No preset categories yet.' : '还没有固定分类。'}
+            </div>
+          )}
         </div>
       </section>
 
@@ -806,15 +554,15 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
         type="button"
         onClick={handleSave}
         style={{
-          order: 6,
-          marginTop: 4,
-          padding: '12px 14px',
+          alignSelf: 'start',
+          marginTop: 2,
+          padding: '10px 12px',
           borderRadius: 12,
           border: '1px solid var(--accent)',
           background: dirty ? 'var(--accent)' : 'var(--card)',
           color: dirty ? 'var(--accent-contrast)' : 'var(--foreground)',
           cursor: 'pointer',
-          fontSize: 15,
+          fontSize: 13,
           fontWeight: 700,
         }}
       >

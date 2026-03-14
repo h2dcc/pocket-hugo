@@ -10,6 +10,8 @@ import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import RemotePostPicker from '@/components/post/RemotePostPicker'
 import SiteSettingsPanel from '@/components/settings/SiteSettingsPanel'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import IconButton from '@/components/ui/IconButton'
+import SectionToggleButton from '@/components/ui/SectionToggleButton'
 import {
   listDraftsFromStorage,
   removeDraftFromStorage,
@@ -155,6 +157,32 @@ function PageIcon() {
   )
 }
 
+function RootIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M12 4V20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function UpIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M19 12H7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M11 8L7 12L11 16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M5 12.5L9.2 16.5L19 7.5" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export default function HomePage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
@@ -224,7 +252,7 @@ export default function HomePage() {
   const cardStyle: React.CSSProperties = {
     border: '1px solid var(--border)',
     borderRadius: 16,
-    padding: 16,
+    padding: 'clamp(12px, 3vw, 16px)',
     background: 'var(--card)',
     boxShadow: 'var(--shadow)',
     display: 'grid',
@@ -233,10 +261,10 @@ export default function HomePage() {
 
   const inputStyle: React.CSSProperties = {
     width: '100%',
-    padding: '12px 14px',
+    padding: '10px 12px',
     borderRadius: 12,
     border: '1px solid var(--border)',
-    fontSize: 16,
+    fontSize: 14,
     background: 'var(--card)',
     color: 'var(--foreground)',
   }
@@ -245,13 +273,13 @@ export default function HomePage() {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 8,
-    padding: '10px 12px',
+    padding: '7px 10px',
     borderRadius: 999,
     border: '1px solid var(--border)',
     background: 'var(--card)',
     color: 'var(--foreground)',
     cursor: 'pointer',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 700,
   }
 
@@ -764,7 +792,7 @@ export default function HomePage() {
   return (
     <main
       style={{
-        padding: 16,
+        padding: 'clamp(12px, 3vw, 20px)',
         maxWidth: 1080,
         margin: '0 auto',
         display: 'grid',
@@ -839,7 +867,7 @@ export default function HomePage() {
                 }}
               >
                 <RepoIcon />
-                <span>{isEnglish ? 'Repository' : '仓库设置'}</span>
+                <span>{isEnglish ? 'Repository' : '仓库'}</span>
               </button>
 
               <button
@@ -859,7 +887,7 @@ export default function HomePage() {
                 }}
               >
                 <PageIcon />
-                <span>{isEnglish ? 'Page Editor' : '页面编辑'}</span>
+                <span>{isEnglish ? 'Page' : '页面'}</span>
               </button>
 
               <button
@@ -873,7 +901,7 @@ export default function HomePage() {
                 }}
               >
                 <SettingsIcon />
-                <span>{isEnglish ? 'Preferences' : '发布偏好'}</span>
+                <span>{isEnglish ? 'Preferences' : '偏好'}</span>
               </button>
             </>
           ) : null}
@@ -886,7 +914,7 @@ export default function HomePage() {
       {visiblePanel === 'auth' ? (
         <section style={cardStyle}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'GitHub Sign In' : 'GitHub 登录'}</h2>
+            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'GitHub Sign In' : 'GitHub 登录'}</h2>
             <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
               {isEnglish
                 ? 'Sign in to choose your Hugo repository and continue creating, loading, and publishing posts.'
@@ -932,8 +960,8 @@ export default function HomePage() {
                   <Image
                     src={session.user.avatarUrl}
                     alt={session.user.login}
-                    width={44}
-                    height={44}
+                    width={36}
+                    height={36}
                     style={{ borderRadius: '50%' }}
                   />
                 ) : null}
@@ -947,7 +975,7 @@ export default function HomePage() {
                 type="button"
                 onClick={handleLogout}
                 style={{
-                  padding: '12px 14px',
+                  padding: '10px 12px',
                   borderRadius: 12,
                   border: '1px solid var(--border)',
                   background: 'var(--card)',
@@ -966,7 +994,7 @@ export default function HomePage() {
       {visiblePanel === 'repo' && session.authenticated ? (
         <section style={cardStyle}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'Repository Settings' : '仓库设置'}</h2>
+            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Repository Settings' : '仓库'}</h2>
             <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
               {isEnglish
                 ? 'Choose the Hugo repository, branch, and posts directory you want to publish into.'
@@ -1019,7 +1047,7 @@ export default function HomePage() {
             }}
           >
             <div style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>{isEnglish ? 'Posts Directory' : '文章目录路径'}</span>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? 'Posts Directory' : '文章目录路径'}</span>
               <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
                 {isEnglish
                   ? 'Browse directories first, then tap "Use Current Directory".'
@@ -1042,8 +1070,7 @@ export default function HomePage() {
                   background: 'var(--card)',
                 }}
               >
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Browsing' : '当前浏览'}</div>
-                <div style={{ marginTop: 6, fontSize: 15, wordBreak: 'break-all' }}>
+                <div style={{ fontSize: 14, wordBreak: 'break-all', fontWeight: 600 }}>
                   {directoryPath || '/'}
                 </div>
               </div>
@@ -1057,70 +1084,16 @@ export default function HomePage() {
                 }}
               >
                 <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Selected Directory' : '已选择目录'}</div>
-                <div style={{ marginTop: 8, fontSize: 18, fontWeight: 800, textAlign: 'center', wordBreak: 'break-all', color: postsBasePath ? 'var(--foreground)' : 'var(--muted)' }}>
+                <div style={{ marginTop: 8, fontSize: 14, fontWeight: 800, textAlign: 'center', wordBreak: 'break-all', color: postsBasePath ? 'var(--foreground)' : 'var(--muted)' }}>
                   {postsBasePath || (isEnglish ? 'Not selected' : '未选择')}
                 </div>
               </div>
             </div>
 
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                gap: 10,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => handleGoToPath('')}
-                disabled={directoriesLoading}
-                style={{
-                  minHeight: 48,
-                  padding: '10px 12px',
-                  borderRadius: 14,
-                  border: '1px solid var(--border)',
-                  background: 'var(--card)',
-                  color: 'var(--foreground)',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                }}
-              >
-                {isEnglish ? 'Root' : '根目录'}
-              </button>
-              <button
-                type="button"
-                onClick={() => handleGoToPath(pathSegments.slice(0, -1).join('/'))}
-                disabled={directoriesLoading || !directoryPath}
-                style={{
-                  minHeight: 48,
-                  padding: '10px 12px',
-                  borderRadius: 14,
-                  border: '1px solid var(--border)',
-                  background: 'var(--card)',
-                  color: 'var(--foreground)',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                }}
-              >
-                {isEnglish ? 'Up One Level' : '返回上级'}
-              </button>
-              <button
-                type="button"
-                onClick={handleSelectCurrentDirectory}
-                disabled={directoriesLoading || !directoryPath}
-                style={{
-                  minHeight: 48,
-                  padding: '10px 12px',
-                  borderRadius: 14,
-                  border: '1px solid var(--accent)',
-                  background: 'var(--accent)',
-                  color: 'var(--accent-contrast)',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                }}
-              >
-                {isEnglish ? 'Use Current Directory' : '选择当前目录'}
-              </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <IconButton label={isEnglish ? 'Go to root directory' : '回到根目录'} icon={<RootIcon />} onClick={() => handleGoToPath('')} disabled={directoriesLoading} />
+              <IconButton label={isEnglish ? 'Go up one level' : '返回上级'} icon={<UpIcon />} onClick={() => handleGoToPath(pathSegments.slice(0, -1).join('/'))} disabled={directoriesLoading || !directoryPath} />
+              <IconButton label={isEnglish ? 'Use current directory' : '选择当前目录'} icon={<CheckIcon />} onClick={handleSelectCurrentDirectory} disabled={directoriesLoading || !directoryPath} active={Boolean(directoryPath && postsBasePath === directoryPath)} style={{ color: 'color-mix(in srgb, var(--foreground) 78%, var(--accent) 22%)', border: '1px solid var(--accent)', background: directoryPath ? 'color-mix(in srgb, var(--accent-soft) 78%, var(--card) 22%)' : 'var(--card)' }} />
             </div>
 
             {pathSegments.length ? (
@@ -1189,14 +1162,10 @@ export default function HomePage() {
                     background: 'var(--card)',
                     color: 'var(--foreground)',
                     cursor: 'pointer',
-                    display: 'grid',
-                    gap: 4,
+                    fontSize: 14,
                   }}
                 >
-                  <span style={{ fontSize: 15, fontWeight: 700 }}>{directory.name}</span>
-                  <span style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>
-                    {directory.path}
-                  </span>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{directory.name}</span>
                 </button>
               ))}
               {!directoriesLoading && !directoryError && directories.length === 0 ? (
@@ -1228,7 +1197,7 @@ export default function HomePage() {
                 borderRadius: 14,
                 padding: '12px 14px',
                 textAlign: 'center',
-                fontSize: 16,
+                fontSize: 14,
                 fontWeight: 800,
                 wordBreak: 'break-all',
               }}
@@ -1242,13 +1211,15 @@ export default function HomePage() {
             onClick={handleSaveConfig}
             disabled={savingConfig || reposLoading}
             style={{
-              padding: '14px 18px',
+              alignSelf: 'start',
+              padding: '10px 14px',
               borderRadius: 12,
               background: 'var(--accent)',
               color: 'var(--accent-contrast)',
               border: 'none',
               cursor: 'pointer',
               fontWeight: 700,
+              fontSize: 13,
               opacity: savingConfig || reposLoading ? 0.7 : 1,
             }}
           >
@@ -1282,7 +1253,7 @@ export default function HomePage() {
       {visiblePanel === 'page' && session.authenticated ? (
         <section style={cardStyle}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'Page Editor' : '页面编辑'}</h2>
+            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Page Editor' : '页面'}</h2>
             <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
               {isEnglish
                 ? 'Configure one standalone Hugo page or a quick timeline page, then reopen it anytime.'
@@ -1328,7 +1299,7 @@ export default function HomePage() {
             }}
           >
             <div style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>
                 {isEnglish ? 'Page Directory' : '页面目录'}
               </span>
               <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -1347,53 +1318,14 @@ export default function HomePage() {
                   background: 'var(--card)',
                 }}
               >
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'Browsing' : '当前浏览'}</div>
-                <div style={{ marginTop: 6, fontSize: 15, wordBreak: 'break-all' }}>
+                <div style={{ fontSize: 14, wordBreak: 'break-all', fontWeight: 600 }}>
                   {pageDirectoryPath || (isEnglish ? 'Not selected yet' : '尚未选择')}
                 </div>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-                  gap: 10,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => handleGoToPagePath('')}
-                  disabled={pageDirectoriesLoading}
-                  style={{
-                    minHeight: 48,
-                    padding: '10px 12px',
-                    borderRadius: 14,
-                    border: '1px solid var(--border)',
-                    background: 'var(--card)',
-                    color: 'var(--foreground)',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                >
-                  {isEnglish ? 'Root' : '根目录'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleGoToPagePath(pagePathSegments.slice(0, -1).join('/'))}
-                  disabled={pageDirectoriesLoading || !pageDirectoryPath}
-                  style={{
-                    minHeight: 48,
-                    padding: '10px 12px',
-                    borderRadius: 14,
-                    border: '1px solid var(--border)',
-                    background: 'var(--card)',
-                    color: 'var(--foreground)',
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                  }}
-                >
-                  {isEnglish ? 'Up One Level' : '返回上级'}
-                </button>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <IconButton label={isEnglish ? 'Go to root directory' : '回到根目录'} icon={<RootIcon />} onClick={() => handleGoToPagePath('')} disabled={pageDirectoriesLoading} />
+                <IconButton label={isEnglish ? 'Go up one level' : '返回上级'} icon={<UpIcon />} onClick={() => handleGoToPagePath(pagePathSegments.slice(0, -1).join('/'))} disabled={pageDirectoriesLoading || !pageDirectoryPath} />
               </div>
 
               {pageDirectoriesLoading ? (
@@ -1417,14 +1349,10 @@ export default function HomePage() {
                       background: 'var(--card)',
                       color: 'var(--foreground)',
                       cursor: 'pointer',
-                      display: 'grid',
-                      gap: 4,
+                      fontSize: 14,
                     }}
                   >
-                    <span style={{ fontSize: 15, fontWeight: 700 }}>{directory.name}</span>
-                    <span style={{ fontSize: 12, color: 'var(--muted)', wordBreak: 'break-all' }}>
-                      {directory.path}
-                    </span>
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>{directory.name}</span>
                   </button>
                 ))}
               </div>
@@ -1442,7 +1370,7 @@ export default function HomePage() {
             }}
           >
             <div style={{ display: 'grid', gap: 4 }}>
-              <span style={{ fontSize: 15, fontWeight: 700 }}>
+              <span style={{ fontSize: 14, fontWeight: 700 }}>
                 {isEnglish ? 'Page File' : '页面文件'}
               </span>
               <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -1515,7 +1443,7 @@ export default function HomePage() {
             <div
               style={{
                 marginTop: 8,
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: 800,
                 textAlign: 'center',
                 color: pageFileName ? 'var(--foreground)' : 'var(--muted)',
@@ -1537,7 +1465,7 @@ export default function HomePage() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div style={{ display: 'grid', gap: 4 }}>
-                <span style={{ fontSize: 15, fontWeight: 700 }}>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>
                   {isEnglish ? 'Create New Page' : '新增页面'}
                 </span>
                 <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
@@ -1546,13 +1474,11 @@ export default function HomePage() {
                     : '在仓库中直接创建新的 Markdown 页面文件。'}
                 </span>
               </div>
-              <button
-                type="button"
+              <SectionToggleButton
+                open={createPageOpen}
                 onClick={() => setCreatePageOpen((prev) => !prev)}
-                style={pillButtonStyle}
-              >
-                {createPageOpen ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
-              </button>
+                label={createPageOpen ? (isEnglish ? 'Collapse create page section' : '收起新增页面区域') : (isEnglish ? 'Expand create page section' : '展开新增页面区域')}
+              />
             </div>
 
             {createPageOpen ? (
@@ -1656,6 +1582,34 @@ export default function HomePage() {
       ) : null}
 
       {session.authenticated ? (
+        <section style={cardStyle}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Published Posts' : '已发布文章'}</h2>
+            <SectionToggleButton
+              open={remotePostsOpen}
+              onClick={() => setRemotePostsOpen((prev) => !prev)}
+              label={remotePostsOpen ? (isEnglish ? 'Collapse published posts' : '收起已发布文章') : (isEnglish ? 'Expand published posts' : '展开已发布文章')}
+            />
+          </div>
+
+          {remotePostsOpen ? (
+            <RemotePostPicker
+              enabled={hasRepoConfig}
+              reloadKey={reloadKey}
+              onLoaded={handleRemoteLoaded}
+            />
+          ) : null}
+        </section>
+      ) : null}
+
+      {session.authenticated ? (
         <section style={{ display: 'grid', gap: 12 }}>
           <div
             style={{
@@ -1678,12 +1632,12 @@ export default function HomePage() {
               }}
               style={{
                 display: 'block',
-                padding: '18px 20px',
-                borderRadius: 16,
+                padding: '12px 16px',
+                borderRadius: 14,
                 background: hasRepoConfig ? 'var(--accent)' : '#9ca3af',
                 color: hasRepoConfig ? 'var(--accent-contrast)' : '#fff',
                 textDecoration: 'none',
-                fontSize: 18,
+                fontSize: 14,
                 fontWeight: 700,
                 textAlign: 'center',
                 boxShadow: 'var(--shadow)',
@@ -1697,12 +1651,12 @@ export default function HomePage() {
                 href="/page-editor"
                 style={{
                   display: 'block',
-                  padding: '18px 20px',
-                  borderRadius: 16,
+                  padding: '12px 16px',
+                  borderRadius: 14,
                   background: 'var(--card)',
                   color: 'var(--foreground)',
                   textDecoration: 'none',
-                  fontSize: 18,
+                  fontSize: 14,
                   fontWeight: 700,
                   textAlign: 'center',
                   boxShadow: 'var(--shadow)',
@@ -1726,44 +1680,12 @@ export default function HomePage() {
               gap: 12,
             }}
           >
-            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'Published Posts' : '已发布文章'}</h2>
-            <button
-              type="button"
-              onClick={() => setRemotePostsOpen((prev) => !prev)}
-              style={pillButtonStyle}
-            >
-              {remotePostsOpen ? (isEnglish ? 'Collapse' : '折叠') : isEnglish ? 'Expand' : '展开'}
-            </button>
-          </div>
-
-          {remotePostsOpen ? (
-            <RemotePostPicker
-              enabled={hasRepoConfig}
-              reloadKey={reloadKey}
-              onLoaded={handleRemoteLoaded}
-            />
-          ) : null}
-        </section>
-      ) : null}
-
-      {session.authenticated ? (
-        <section style={cardStyle}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <h2 style={{ margin: 0, fontSize: 20 }}>{isEnglish ? 'Local Drafts' : '本地草稿'}</h2>
-            <button
-              type="button"
+            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Local Drafts' : '本地草稿'}</h2>
+            <SectionToggleButton
+              open={draftsOpen}
               onClick={() => setDraftsOpen((prev) => !prev)}
-              style={pillButtonStyle}
-            >
-              {draftsOpen ? (isEnglish ? 'Collapse' : '折叠') : isEnglish ? 'Expand' : '展开'}
-            </button>
+              label={draftsOpen ? (isEnglish ? 'Collapse local drafts' : '收起本地草稿') : (isEnglish ? 'Expand local drafts' : '展开本地草稿')}
+            />
           </div>
 
           {draftsOpen ? (
@@ -1793,15 +1715,15 @@ export default function HomePage() {
               width: '100%',
               maxWidth: 820,
               background: 'var(--card)',
-              borderRadius: 20,
-              padding: 18,
+              borderRadius: 18,
+              padding: 14,
               boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
               display: 'grid',
               gap: 12,
             }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div style={{ fontSize: 18, fontWeight: 700 }}>{isEnglish ? 'Delete this draft?' : '删除这个草稿？'}</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? 'Delete this draft?' : '删除这个草稿？'}</div>
             <div
               style={{
                 color: 'var(--muted)',
@@ -1820,12 +1742,12 @@ export default function HomePage() {
                 onClick={handleConfirmDelete}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: 14,
+                  padding: '10px 12px',
+                  borderRadius: 12,
                   border: 'none',
                   background: '#d92d20',
                   color: '#fff',
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 700,
                   cursor: 'pointer',
                 }}
@@ -1837,12 +1759,12 @@ export default function HomePage() {
                 onClick={() => setPendingDeleteFolderName('')}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: 14,
+                  padding: '10px 12px',
+                  borderRadius: 12,
                   border: '1px solid var(--border)',
                   background: 'var(--card)',
                   color: 'var(--foreground)',
-                  fontSize: 16,
+                  fontSize: 14,
                   fontWeight: 600,
                   cursor: 'pointer',
                 }}

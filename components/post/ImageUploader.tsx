@@ -97,7 +97,7 @@ export default function ImageUploader({
           textAlign: 'center',
         }}
       >
-        <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--foreground)' }}>
+        <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)' }}>
           {uploading
             ? isEnglish
               ? 'Processing image...'
