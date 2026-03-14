@@ -1,4 +1,4 @@
-import { restoreAssetPreviewUrls } from '@/lib/image'
+﻿import { restoreAssetPreviewUrls } from '@/lib/image'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
 import type { PostDraft } from '@/lib/types'
 
@@ -17,7 +17,9 @@ function prepareDraftForStorage(draft: PostDraft): PostDraft {
     ...draft,
     assets: draft.assets.map((asset) => ({
       ...asset,
-      previewUrl: '',
+      // Only drop duplicated data URLs for locally uploaded images.
+      // Remote GitHub assets rely on previewUrl because they do not have base64 content.
+      previewUrl: asset.contentBase64 ? '' : asset.previewUrl,
     })),
   }
 }

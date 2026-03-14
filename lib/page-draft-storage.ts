@@ -1,4 +1,4 @@
-import { restoreAssetPreviewUrls } from '@/lib/image'
+﻿import { restoreAssetPreviewUrls } from '@/lib/image'
 import type { PageDraft } from '@/lib/page-file'
 
 const PAGE_DRAFT_PREFIX = 'page-draft:'
@@ -16,7 +16,7 @@ function preparePageDraftForStorage(draft: PageDraft): PageDraft {
     ...draft,
     assets: draft.assets.map((asset) => ({
       ...asset,
-      previewUrl: '',
+      previewUrl: asset.contentBase64 ? '' : asset.previewUrl,
     })),
   }
 }
