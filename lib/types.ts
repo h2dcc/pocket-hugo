@@ -1,6 +1,9 @@
+import type { FrontmatterPreferences } from '@/lib/frontmatter-preferences'
+
 export type Frontmatter = {
   description: string
   title: string
+  draft: boolean
   slug: string
   date: string
   categories: string[]
@@ -22,6 +25,7 @@ export type PostDraft = {
   body: string
   assets: DraftAsset[]
   remoteAssetNames?: string[]
+  frontmatterPreferences?: FrontmatterPreferences
 }
 
 export type CustomFrontmatterField = {

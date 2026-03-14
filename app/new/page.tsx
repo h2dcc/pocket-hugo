@@ -5,33 +5,35 @@ import { useRouter } from 'next/navigation'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import { buildFolderName } from '@/lib/naming'
 import { createEmptyDraft } from '@/lib/post-template'
+import { loadSiteSettingsFromStorage } from '@/lib/site-settings'
 import { saveDraftToStorage } from '@/lib/draft-storage'
 import { useLanguage } from '@/lib/use-language'
 
-function getTodayPrefix() {
+function getDatePartsWithOffset(offsetHours: number) {
   const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
+  const utcMillis = now.getTime() + now.getTimezoneOffset() * 60_000
+  const targetMillis = utcMillis + offsetHours * 60 * 60_000
+  const target = new Date(targetMillis)
+  const year = target.getUTCFullYear()
+  const month = String(target.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(target.getUTCDate()).padStart(2, '0')
+  const hours = String(target.getUTCHours()).padStart(2, '0')
+  const minutes = String(target.getUTCMinutes()).padStart(2, '0')
+  const seconds = String(target.getUTCSeconds()).padStart(2, '0')
+  return { year, month, day, hours, minutes, seconds }
+}
+
+function getTodayPrefixByOffset(offsetHours: number) {
+  const { year, month, day } = getDatePartsWithOffset(offsetHours)
   return `${year}-${month}-${day}`
 }
 
-function getCurrentDateTime() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  const hours = String(now.getHours()).padStart(2, '0')
-  const minutes = String(now.getMinutes()).padStart(2, '0')
-  const seconds = String(now.getSeconds()).padStart(2, '0')
-
-  const offsetMinutes = -now.getTimezoneOffset()
-  const sign = offsetMinutes >= 0 ? '+' : '-'
-  const abs = Math.abs(offsetMinutes)
-  const offsetHours = String(Math.floor(abs / 60)).padStart(2, '0')
-  const offsetMins = String(abs % 60).padStart(2, '0')
-
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHours}:${offsetMins}`
+function getCurrentDateTime(offsetHours: number) {
+  const { year, month, day, hours, minutes, seconds } = getDatePartsWithOffset(offsetHours)
+  const sign = offsetHours >= 0 ? '+' : '-'
+  const absOffset = Math.abs(offsetHours)
+  const offsetHourText = String(absOffset).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHourText}:00`
 }
 
 function normalizeSlugSuffix(input: string) {
@@ -47,28 +49,38 @@ function normalizeSlugSuffix(input: string) {
 export default function NewPostPage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
-  const [datePrefix, setDatePrefix] = useState(getTodayPrefix())
-  const [slugSuffix, setSlugSuffix] = useState('')
+  const [useDatePrefix, setUseDatePrefix] = useState(true)
+  const [datePrefix, setDatePrefix] = useState(() =>
+    getTodayPrefixByOffset(loadSiteSettingsFromStorage().timezoneOffsetHours ?? 8),
+  )
+  const [slugInput, setSlugInput] = useState('')
   const [error, setError] = useState('')
 
-  const normalizedSlug = useMemo(() => normalizeSlugSuffix(slugSuffix), [slugSuffix])
+  const normalizedSlug = useMemo(() => normalizeSlugSuffix(slugInput), [slugInput])
 
   const folderName = useMemo(() => {
     if (!normalizedSlug) return ''
-    return buildFolderName(datePrefix, normalizedSlug)
-  }, [datePrefix, normalizedSlug])
+    return useDatePrefix ? buildFolderName(datePrefix, normalizedSlug) : normalizedSlug
+  }, [datePrefix, normalizedSlug, useDatePrefix])
 
   function handleCreate() {
-    if (!datePrefix) {
+    if (useDatePrefix && !datePrefix) {
       setError(isEnglish ? 'Please enter a date prefix.' : '请填写日期前缀')
       return
     }
     if (!normalizedSlug) {
-      setError(isEnglish ? 'Please enter a slug suffix.' : '请填写 slug 后缀')
+      setError(isEnglish ? 'Please enter a slug.' : '请填写 slug')
       return
     }
 
-    const draft = createEmptyDraft(folderName, normalizedSlug, getCurrentDateTime())
+    const settings = loadSiteSettingsFromStorage()
+    const timezoneOffsetHours = settings.timezoneOffsetHours ?? 8
+    const draft = createEmptyDraft(
+      folderName,
+      normalizedSlug,
+      getCurrentDateTime(timezoneOffsetHours),
+      settings.frontmatterPreferences,
+    )
     saveDraftToStorage(draft)
     router.push(`/editor/${folderName}`)
   }
@@ -103,27 +115,66 @@ export default function NewPostPage() {
             ? 'Set up the basic post info first, then continue writing and uploading images in the editor.'
             : '先填写文章基础信息，创建后再进入编辑页继续写作和上传图片。'}
         </div>
-        <label>
-          <div style={labelTitleStyle}>{isEnglish ? 'Date Prefix' : '日期前缀'}</div>
-          <input
-            type="text"
-            value={datePrefix}
-            onChange={(e) => setDatePrefix(e.target.value)}
-            placeholder="2026-03-12"
-            style={inputStyle}
-          />
-        </label>
+
+        <div style={{ display: 'grid', gap: 8 }}>
+          <div style={labelTitleStyle}>{isEnglish ? 'Use Date Prefix' : '启用日期前缀'}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button
+              type="button"
+              onClick={() => setUseDatePrefix(true)}
+              style={{
+                padding: '11px 12px',
+                borderRadius: 10,
+                border: useDatePrefix ? '1px solid var(--accent)' : '1px solid var(--border)',
+                background: useDatePrefix ? 'var(--accent)' : 'var(--card)',
+                color: useDatePrefix ? 'var(--accent-contrast)' : 'var(--foreground)',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {isEnglish ? 'Enabled' : '启用'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setUseDatePrefix(false)}
+              style={{
+                padding: '11px 12px',
+                borderRadius: 10,
+                border: !useDatePrefix ? '1px solid var(--accent)' : '1px solid var(--border)',
+                background: !useDatePrefix ? 'var(--accent)' : 'var(--card)',
+                color: !useDatePrefix ? 'var(--accent-contrast)' : 'var(--foreground)',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {isEnglish ? 'Disabled' : '关闭'}
+            </button>
+          </div>
+        </div>
+
+        {useDatePrefix ? (
+          <label>
+            <div style={labelTitleStyle}>{isEnglish ? 'Date Prefix' : '日期前缀'}</div>
+            <input
+              type="text"
+              value={datePrefix}
+              onChange={(e) => setDatePrefix(e.target.value)}
+              placeholder="2026-03-12"
+              style={inputStyle}
+            />
+          </label>
+        ) : null}
 
         <label>
-          <div style={labelTitleStyle}>{isEnglish ? 'Slug Suffix' : 'Slug 后缀'}</div>
+          <div style={labelTitleStyle}>{useDatePrefix ? (isEnglish ? 'Slug Suffix' : 'Slug 后缀') : (isEnglish ? 'Full Slug' : '完整 Slug')}</div>
           <input
             type="text"
-            value={slugSuffix}
+            value={slugInput}
             onChange={(e) => {
-              setSlugSuffix(normalizeSlugSuffix(e.target.value))
+              setSlugInput(normalizeSlugSuffix(e.target.value))
               setError('')
             }}
-            placeholder="three-body-problem-reading-notes"
+            placeholder={useDatePrefix ? 'three-body-problem-reading-notes' : 'my-post-slug'}
             autoCapitalize="off"
             autoCorrect="off"
             spellCheck={false}
@@ -134,7 +185,7 @@ export default function NewPostPage() {
               ? 'An English slug is recommended. Invalid URL or file-path symbols are removed automatically, keeping only lowercase letters, numbers, and `-`.'
               : '建议使用英文 slug。系统会自动过滤不适合网页 URL 和文件路径的符号，只保留小写字母、数字和 `-`。'}
           </div>
-          {slugSuffix && slugSuffix !== normalizedSlug ? (
+          {slugInput && slugInput !== normalizedSlug ? (
             <div style={{ marginTop: 6, fontSize: 13, color: '#1677ff' }}>
               {isEnglish ? 'Normalized to: ' : '已自动规范为：'}
               {normalizedSlug}

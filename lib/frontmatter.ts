@@ -6,6 +6,7 @@ export function normalizeFrontmatter(
   return {
     description: typeof frontmatter?.description === 'string' ? frontmatter.description : '',
     title: typeof frontmatter?.title === 'string' ? frontmatter.title : '',
+    draft: typeof frontmatter?.draft === 'boolean' ? frontmatter.draft : false,
     slug: typeof frontmatter?.slug === 'string' ? frontmatter.slug : '',
     date: typeof frontmatter?.date === 'string' ? frontmatter.date : '',
     categories: Array.isArray(frontmatter?.categories)

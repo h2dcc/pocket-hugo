@@ -130,6 +130,16 @@ export async function getGithubFileContent(path: string, token: string, context:
   return Buffer.from(data.content, 'base64').toString('utf-8')
 }
 
+export async function getGithubFileBase64(path: string, token: string, context: RepoContext) {
+  const data = await githubRequest<GithubContentFile>(buildContentsPath(path, context), token)
+
+  if (!data.content || data.encoding !== 'base64') {
+    throw new Error(`GitHub file is empty or not base64 encoded: ${path}`)
+  }
+
+  return data.content.replace(/\s+/g, '')
+}
+
 export async function listGithubDir(path: string, token: string, context: RepoContext) {
   return githubRequest<GithubContentDirItem[]>(buildContentsPath(path, context), token)
 }

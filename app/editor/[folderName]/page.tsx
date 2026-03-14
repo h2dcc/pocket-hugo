@@ -15,6 +15,11 @@ import { normalizeFrontmatter } from '@/lib/frontmatter'
 import { restoreAssetPreviewUrls } from '@/lib/image'
 import { renderIndexMd } from '@/lib/markdown'
 import {
+  DEFAULT_FRONTMATTER_PREFERENCES,
+  normalizeFrontmatterPreferences,
+  type FrontmatterPreferences,
+} from '@/lib/frontmatter-preferences'
+import {
   DEFAULT_SITE_SETTINGS,
   loadSiteSettingsFromStorage,
   type SiteSettings,
@@ -35,10 +40,140 @@ function findCoverAsset(draft: PostDraft | null) {
   return draft.assets.find((asset) => asset.name === draft.frontmatter.image) || null
 }
 
-type MarkdownToolbarAction = {
+function consumeCustomField(
+  customFields: PostDraft['frontmatter']['customFields'],
+  keys: string[],
+) {
+  const normalizedKeys = keys
+    .map((key) => key.trim().toLowerCase())
+    .filter(Boolean)
+  const index = customFields.findIndex((field) =>
+    normalizedKeys.includes(field.key.trim().toLowerCase()),
+  )
+  if (index < 0) return null
+
+  const [found] = customFields.splice(index, 1)
+  return found
+}
+
+function parseListValue(field: { type: 'text' | 'list'; value: string } | null) {
+  if (!field) return []
+  return field.value
+    .split(/[，,]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function isImageMarkdown(markdown: string) {
+  return /^!\[[^\]]*]\([^)]+\)$/.test(markdown.trim())
+}
+
+function buildStandaloneImageBlock(markdown: string) {
+  return `\n${markdown.trim()}\n`
+}
+
+function normalizeFieldKey(value: string) {
+  return value.trim().toLowerCase()
+}
+
+function parseEnglishCommaList(value: string) {
+  return value
+    .replace(/，/g, ',')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
+function applyFrontmatterPreferencesToDraft(
+  draft: PostDraft,
+  preferences: FrontmatterPreferences,
+): PostDraft {
+  const frontmatter = normalizeFrontmatter(draft.frontmatter)
+  const customFields = [...frontmatter.customFields]
+  const mappedPreferences = normalizeFrontmatterPreferences(preferences)
+
+  const slugField = consumeCustomField(customFields, [mappedPreferences.slugFieldName])
+  const categoriesField = consumeCustomField(customFields, [
+    mappedPreferences.categoriesFieldName,
+  ])
+  const tagsField = consumeCustomField(customFields, [mappedPreferences.tagsFieldName])
+  const coverField = consumeCustomField(customFields, [
+    mappedPreferences.coverImageFieldName,
+    'featured-image',
+    'featured_image',
+    'cover',
+    'cover-image',
+    'cover_image',
+  ])
+
+  if (!frontmatter.slug.trim() && slugField) {
+    frontmatter.slug = slugField.value.trim()
+  }
+  if (!frontmatter.categories.length) {
+    frontmatter.categories = parseListValue(categoriesField)
+  }
+  if (!frontmatter.tags.length) {
+    frontmatter.tags = parseListValue(tagsField)
+  }
+  if (!frontmatter.image.trim() && coverField) {
+    frontmatter.image = coverField.value.trim()
+  }
+
+  for (const extraField of mappedPreferences.extraBasicInfoFields) {
+    const exists = customFields.some(
+      (field) => normalizeFieldKey(field.key) === normalizeFieldKey(extraField.key),
+    )
+    if (!exists && extraField.key.trim()) {
+      customFields.push({
+        id: `pref-${extraField.id}`,
+        key: extraField.key.trim(),
+        type: extraField.type,
+        value: '',
+      })
+    }
+  }
+
+  frontmatter.customFields = customFields
+
+  return {
+    ...draft,
+    frontmatter,
+    frontmatterPreferences: mappedPreferences,
+  }
+}
+
+type SlashCommand = {
   key: string
   label: string
-  onClick: () => void
+  keywords: string[]
+  markdown: string
+}
+
+type SlashState = {
+  open: boolean
+  query: string
+  start: number
+  end: number
+}
+
+function estimateSlashMenuPosition(
+  textarea: HTMLTextAreaElement,
+  value: string,
+  cursor: number,
+) {
+  const rect = textarea.getBoundingClientRect()
+  const before = value.slice(0, cursor)
+  const lines = before.split('\n')
+  const line = lines[lines.length - 1] || ''
+  const lineHeight = 26
+  const charWidth = 8.2
+
+  const rawLeft = rect.left + 14 + line.length * charWidth
+  const maxLeft = Math.max(rect.left + 12, rect.right - 260)
+  const left = Math.min(rawLeft, maxLeft)
+  const top = Math.max(12, rect.top + 12 + (lines.length - 1) * lineHeight - 10)
+
+  return { top, left }
 }
 
 export default function EditorPage() {
@@ -56,9 +191,18 @@ export default function EditorPage() {
   const [basicInfoOpen, setBasicInfoOpen] = useState(true)
   const [imagesOpen, setImagesOpen] = useState(true)
   const [bodyOpen, setBodyOpen] = useState(true)
-  const [markdownToolsOpen, setMarkdownToolsOpen] = useState(false)
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
   const [previewAsset, setPreviewAsset] = useState<DraftAsset | null>(null)
+  const [copiedAssetName, setCopiedAssetName] = useState('')
+  const [categoryInput, setCategoryInput] = useState('')
+  const [tagInput, setTagInput] = useState('')
+  const [slashState, setSlashState] = useState<SlashState>({
+    open: false,
+    query: '',
+    start: 0,
+    end: 0,
+  })
+  const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 })
 
   const cardStyle: React.CSSProperties = {
     border: '1px solid var(--border)',
@@ -93,20 +237,26 @@ export default function EditorPage() {
   }
 
   useEffect(() => {
-    setSiteSettings(loadSiteSettingsFromStorage())
-  }, [])
+    const loadedSettings = loadSiteSettingsFromStorage()
+    setSiteSettings(loadedSettings)
 
-  useEffect(() => {
     if (!folderName) return
 
     const parsed = loadDraftFromStorage(folderName)
     if (!parsed) return
 
-    setDraft({
+    const restoredDraft: PostDraft = {
       ...parsed,
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
       assets: restoreAssetPreviewUrls(parsed.assets || []),
-    })
+    }
+
+    setDraft(
+      applyFrontmatterPreferencesToDraft(
+        restoredDraft,
+        loadedSettings.frontmatterPreferences,
+      ),
+    )
   }, [folderName])
 
   useEffect(() => {
@@ -125,10 +275,48 @@ export default function EditorPage() {
 
   const markdownOutput = useMemo(() => {
     if (!draft) return ''
-    return renderIndexMd(draft.frontmatter, draft.body)
+    return renderIndexMd(draft.frontmatter, draft.body, draft.frontmatterPreferences)
   }, [draft])
 
   const coverAsset = useMemo(() => findCoverAsset(draft), [draft])
+  const frontmatterPreferences = useMemo(
+    () =>
+      normalizeFrontmatterPreferences(
+        draft?.frontmatterPreferences ||
+          siteSettings.frontmatterPreferences ||
+          DEFAULT_FRONTMATTER_PREFERENCES,
+      ),
+    [draft?.frontmatterPreferences, siteSettings.frontmatterPreferences],
+  )
+  const configuredExtraFields = frontmatterPreferences.extraBasicInfoFields.filter((field) =>
+    field.key.trim(),
+  )
+  const configuredExtraFieldKeySet = useMemo(
+    () =>
+      new Set(
+        configuredExtraFields.map((field) => normalizeFieldKey(field.key)),
+      ),
+    [configuredExtraFields],
+  )
+  const manualCustomFields = useMemo(
+    () =>
+      (draft?.frontmatter.customFields || []).filter(
+        (field) => !configuredExtraFieldKeySet.has(normalizeFieldKey(field.key)),
+      ),
+    [draft?.frontmatter.customFields, configuredExtraFieldKeySet],
+  )
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>()
+    for (const item of siteSettings.categoriesPreset || []) {
+      const normalized = String(item || '').trim()
+      if (normalized) set.add(normalized)
+    }
+    for (const item of draft?.frontmatter.categories || []) {
+      const normalized = String(item || '').trim()
+      if (normalized) set.add(normalized)
+    }
+    return Array.from(set)
+  }, [siteSettings.categoriesPreset, draft?.frontmatter.categories])
 
   function updateFrontmatter<K extends keyof PostDraft['frontmatter']>(
     key: K,
@@ -141,6 +329,82 @@ export default function EditorPage() {
         frontmatter: {
           ...prev.frontmatter,
           [key]: value,
+        },
+      }
+    })
+  }
+
+  function toggleCategory(category: string) {
+    const target = category.trim()
+    if (!target) return
+    setDraft((prev) => {
+      if (!prev) return prev
+      const exists = prev.frontmatter.categories.some((item) => item === target)
+      const nextCategories = exists
+        ? prev.frontmatter.categories.filter((item) => item !== target)
+        : [...prev.frontmatter.categories, target]
+      return {
+        ...prev,
+        frontmatter: {
+          ...prev.frontmatter,
+          categories: nextCategories,
+        },
+      }
+    })
+  }
+
+  function addCategoryFromInput() {
+    const next = categoryInput.trim()
+    if (!next) return
+    setDraft((prev) => {
+      if (!prev) return prev
+      const exists = prev.frontmatter.categories.some(
+        (item) => item.toLowerCase() === next.toLowerCase(),
+      )
+      if (exists) return prev
+      return {
+        ...prev,
+        frontmatter: {
+          ...prev.frontmatter,
+          categories: [...prev.frontmatter.categories, next],
+        },
+      }
+    })
+    setCategoryInput('')
+  }
+
+  function addTagsFromInput() {
+    const parsed = parseEnglishCommaList(tagInput)
+    if (!parsed.length) return
+    setDraft((prev) => {
+      if (!prev) return prev
+      const existing = new Set(prev.frontmatter.tags.map((item) => item.toLowerCase()))
+      const nextTags = [...prev.frontmatter.tags]
+      for (const item of parsed) {
+        const key = item.toLowerCase()
+        if (existing.has(key)) continue
+        existing.add(key)
+        nextTags.push(item)
+      }
+      return {
+        ...prev,
+        frontmatter: {
+          ...prev.frontmatter,
+          tags: nextTags,
+        },
+      }
+    })
+    setTagInput('')
+  }
+
+  function removeTag(tag: string) {
+    setDraft((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        frontmatter: {
+          ...prev.frontmatter,
+          tags: prev.frontmatter.tags.filter((item) => item !== tag),
         },
       }
     })
@@ -201,25 +465,78 @@ export default function EditorPage() {
     })
   }
 
+  function updateConfiguredExtraFieldValue(
+    fieldKey: string,
+    fieldType: 'text' | 'list',
+    value: string,
+  ) {
+    setDraft((prev) => {
+      if (!prev) return prev
+      const normalizedKey = normalizeFieldKey(fieldKey)
+      const current = [...prev.frontmatter.customFields]
+      const index = current.findIndex(
+        (field) => normalizeFieldKey(field.key) === normalizedKey,
+      )
+
+      if (index >= 0) {
+        current[index] = {
+          ...current[index],
+          key: fieldKey,
+          type: fieldType,
+          value,
+        }
+      } else {
+        current.push({
+          id: `pref-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          key: fieldKey,
+          type: fieldType,
+          value,
+        })
+      }
+
+      return {
+        ...prev,
+        frontmatter: {
+          ...prev.frontmatter,
+          customFields: current,
+        },
+      }
+    })
+  }
+
   function insertMarkdownAtCursor(markdown: string) {
     const textarea = bodyTextareaRef.current
 
     setDraft((prev) => {
       if (!prev) return prev
 
+      const shouldInsertImageBlock = isImageMarkdown(markdown)
+
       if (!textarea) {
         return {
           ...prev,
-          body: prev.body ? `${prev.body}\n\n${markdown}` : markdown,
+          body: prev.body
+            ? `${prev.body}${shouldInsertImageBlock ? buildStandaloneImageBlock(markdown) : `\n\n${markdown}`}`
+            : shouldInsertImageBlock
+              ? markdown
+              : markdown,
         }
       }
 
       const selectionStart = textarea.selectionStart ?? prev.body.length
       const selectionEnd = textarea.selectionEnd ?? prev.body.length
+      const insertionText = shouldInsertImageBlock
+        ? buildStandaloneImageBlock(markdown)
+        : markdown
+      const insertionStart = shouldInsertImageBlock
+        ? (prev.body.indexOf('\n', selectionEnd) === -1 ? prev.body.length : prev.body.indexOf('\n', selectionEnd))
+        : selectionStart
       const nextBody =
-        prev.body.slice(0, selectionStart) + markdown + prev.body.slice(selectionEnd)
+        prev.body.slice(0, insertionStart) +
+        insertionText +
+        prev.body.slice(shouldInsertImageBlock ? insertionStart : selectionEnd)
 
-      const nextCursor = selectionStart + markdown.length
+      const nextCursor = insertionStart + insertionText.length
 
       requestAnimationFrame(() => {
         textarea.focus()
@@ -233,67 +550,62 @@ export default function EditorPage() {
     })
   }
 
-  function wrapSelection(prefix: string, suffix = prefix, placeholder = '') {
-    const textarea = bodyTextareaRef.current
-
-    setDraft((prev) => {
-      if (!prev) return prev
-
-      if (!textarea) {
-        const fallback = `${prefix}${placeholder}${suffix}`
-        return {
-          ...prev,
-          body: prev.body ? `${prev.body}\n\n${fallback}` : fallback,
-        }
-      }
-
-      const selectionStart = textarea.selectionStart ?? prev.body.length
-      const selectionEnd = textarea.selectionEnd ?? prev.body.length
-      const selectedText = prev.body.slice(selectionStart, selectionEnd) || placeholder
-      const wrappedText = `${prefix}${selectedText}${suffix}`
-      const nextBody =
-        prev.body.slice(0, selectionStart) + wrappedText + prev.body.slice(selectionEnd)
-      const nextStart = selectionStart + prefix.length
-      const nextEnd = nextStart + selectedText.length
-
-      requestAnimationFrame(() => {
-        textarea.focus()
-        textarea.setSelectionRange(nextStart, nextEnd)
-      })
-
-      return {
-        ...prev,
-        body: nextBody,
-      }
-    })
+  async function copyAssetName(assetName: string) {
+    try {
+      await navigator.clipboard.writeText(assetName)
+      setCopiedAssetName(assetName)
+      setTimeout(() => setCopiedAssetName(''), 1200)
+    } catch {
+      setStatus(
+        isEnglish ? 'Unable to copy file name on this device' : '当前设备无法复制文件名',
+      )
+    }
   }
 
-  function prefixSelection(prefix: string, placeholder: string) {
+  function updateSlashStateByText(value: string, cursor: number) {
     const textarea = bodyTextareaRef.current
+    const textBeforeCursor = value.slice(0, cursor)
+    const slashIndex = textBeforeCursor.lastIndexOf('/')
+    if (slashIndex < 0) {
+      setSlashState({ open: false, query: '', start: 0, end: 0 })
+      return
+    }
+
+    const prefixChar = slashIndex === 0 ? ' ' : textBeforeCursor[slashIndex - 1]
+    const commandText = textBeforeCursor.slice(slashIndex + 1)
+    const isLineBreakInside = commandText.includes('\n')
+    const hasSpaceInside = /\s/.test(commandText)
+    const validPrefix = /\s/.test(prefixChar)
+
+    if (!validPrefix || isLineBreakInside || hasSpaceInside) {
+      setSlashState({ open: false, query: '', start: 0, end: 0 })
+      return
+    }
+
+    setSlashState({
+      open: true,
+      query: commandText.toLowerCase(),
+      start: slashIndex,
+      end: cursor,
+    })
+    if (textarea) {
+      setSlashMenuPos(estimateSlashMenuPosition(textarea, value, cursor))
+    }
+  }
+
+  function replaceSlashToken(markdown: string) {
+    const textarea = bodyTextareaRef.current
+    if (!textarea) return
 
     setDraft((prev) => {
       if (!prev) return prev
-
-      if (!textarea) {
-        return {
-          ...prev,
-          body: prev.body ? `${prev.body}\n${prefix}${placeholder}` : `${prefix}${placeholder}`,
-        }
-      }
-
-      const selectionStart = textarea.selectionStart ?? prev.body.length
-      const selectionEnd = textarea.selectionEnd ?? prev.body.length
-      const selectedText = prev.body.slice(selectionStart, selectionEnd) || placeholder
-      const nextText = selectedText
-        .split('\n')
-        .map((line) => `${prefix}${line || placeholder}`)
-        .join('\n')
       const nextBody =
-        prev.body.slice(0, selectionStart) + nextText + prev.body.slice(selectionEnd)
+        prev.body.slice(0, slashState.start) + markdown + prev.body.slice(slashState.end)
+      const nextCursor = slashState.start + markdown.length
 
       requestAnimationFrame(() => {
         textarea.focus()
-        textarea.setSelectionRange(selectionStart, selectionStart + nextText.length)
+        textarea.setSelectionRange(nextCursor, nextCursor)
       })
 
       return {
@@ -301,6 +613,8 @@ export default function EditorPage() {
         body: nextBody,
       }
     })
+
+    setSlashState({ open: false, query: '', start: 0, end: 0 })
   }
 
   function handleAssetUploaded(asset: DraftAsset) {
@@ -337,7 +651,7 @@ export default function EditorPage() {
       return false
     }
 
-    if (!draft.frontmatter.slug.trim()) {
+    if (frontmatterPreferences.slugFieldEnabled && !draft.frontmatter.slug.trim()) {
       setPublishError(isEnglish ? 'Please enter a slug first.' : '请先填写 slug')
       return false
     }
@@ -400,64 +714,73 @@ export default function EditorPage() {
     updateFrontmatter('image', assetName)
   }
 
-  const toolbarActions: MarkdownToolbarAction[] = [
+  const slashCommands: SlashCommand[] = [
     {
-      key: 'heading',
-      label: isEnglish ? 'H2' : '标题',
-      onClick: () => prefixSelection('## ', isEnglish ? 'Section Title' : '小节标题'),
+      key: 'h2',
+      label: isEnglish ? 'Heading' : '标题',
+      keywords: ['h2', 'heading', 'title', 'biaoti'],
+      markdown: isEnglish ? '## Section Title' : '## 小节标题',
     },
     {
       key: 'bold',
       label: isEnglish ? 'Bold' : '加粗',
-      onClick: () => wrapSelection('**', '**', isEnglish ? 'bold text' : '加粗文字'),
+      keywords: ['bold', 'strong', 'jiacu'],
+      markdown: isEnglish ? '**bold text**' : '**加粗文字**',
     },
     {
       key: 'italic',
       label: isEnglish ? 'Italic' : '斜体',
-      onClick: () => wrapSelection('*', '*', isEnglish ? 'italic text' : '斜体文字'),
+      keywords: ['italic', 'xieti'],
+      markdown: isEnglish ? '*italic text*' : '*斜体文字*',
     },
     {
       key: 'link',
       label: isEnglish ? 'Link' : '链接',
-      onClick: () =>
-        wrapSelection('[', '](https://example.com)', isEnglish ? 'link text' : '链接文字'),
+      keywords: ['link', 'url', 'lianjie'],
+      markdown: isEnglish ? '[link text](https://example.com)' : '[链接文字](https://example.com)',
     },
     {
       key: 'code',
-      label: isEnglish ? 'Code' : '代码',
-      onClick: () => wrapSelection('`', '`', isEnglish ? 'code' : '代码'),
+      label: isEnglish ? 'Code' : '行内代码',
+      keywords: ['code', 'inline', 'daima'],
+      markdown: isEnglish ? '`code`' : '`代码`',
     },
     {
       key: 'codeblock',
       label: isEnglish ? 'Code Block' : '代码块',
-      onClick: () =>
-        insertMarkdownAtCursor(
-          isEnglish
-            ? '\n```ts\nconst example = true\n```\n'
-            : '\n```ts\nconst 示例 = true\n```\n',
-        ),
+      keywords: ['codeblock', 'block', 'daimakuai'],
+      markdown: isEnglish ? '\n```ts\nconst example = true\n```\n' : '\n```ts\nconst 示例 = true\n```\n',
     },
     {
       key: 'quote',
       label: isEnglish ? 'Quote' : '引用',
-      onClick: () => prefixSelection('> ', isEnglish ? 'Quoted text' : '引用内容'),
+      keywords: ['quote', 'yinyong'],
+      markdown: isEnglish ? '> Quoted text' : '> 引用内容',
     },
     {
       key: 'list',
       label: isEnglish ? 'List' : '列表',
-      onClick: () => prefixSelection('- ', isEnglish ? 'List item' : '列表项'),
+      keywords: ['list', 'ul', 'liebiao'],
+      markdown: isEnglish ? '- List item' : '- 列表项',
     },
     {
       key: 'table',
       label: isEnglish ? 'Table' : '表格',
-      onClick: () =>
-        insertMarkdownAtCursor(
-          isEnglish
-            ? '\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n'
-            : '\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 A | 内容 B |\n',
-        ),
+      keywords: ['table', 'biaoge'],
+      markdown: isEnglish
+        ? '\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n'
+        : '\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 A | 内容 B |\n',
     },
   ]
+
+  const filteredSlashCommands = slashState.query
+    ? slashCommands.filter((command) =>
+        [command.label, ...command.keywords]
+          .join(' ')
+          .toLowerCase()
+          .includes(slashState.query),
+      )
+    : slashCommands
 
   if (!draft) {
     return (
@@ -625,16 +948,6 @@ export default function EditorPage() {
                 </label>
 
                 <label>
-                  <div style={labelTitleStyle}>Slug</div>
-                  <input
-                    type="text"
-                    value={draft.frontmatter.slug}
-                    onChange={(e) => updateFrontmatter('slug', e.target.value)}
-                    style={inputStyle}
-                  />
-                </label>
-
-                <label>
                   <div style={labelTitleStyle}>{isEnglish ? 'Date' : '日期'}</div>
                   <input
                     type="text"
@@ -644,45 +957,297 @@ export default function EditorPage() {
                   />
                 </label>
 
-                <label>
-                  <div style={labelTitleStyle}>{isEnglish ? 'Categories (comma-separated)' : '分类（逗号分隔）'}</div>
-                  <input
-                    type="text"
-                    value={draft.frontmatter.categories.join(', ')}
-                    onChange={(e) =>
-                      updateFrontmatter(
-                        'categories',
-                        e.target.value.split(',').map((item) => item.trim()).filter(Boolean),
-                      )
-                    }
-                    style={inputStyle}
-                  />
-                </label>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={labelTitleStyle}>{isEnglish ? 'Draft' : '草稿'}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <button
+                      type="button"
+                      onClick={() => updateFrontmatter('draft', false)}
+                      style={{
+                        padding: '11px 12px',
+                        borderRadius: 10,
+                        border: draft.frontmatter.draft ? '1px solid var(--border)' : '1px solid var(--accent)',
+                        background: draft.frontmatter.draft ? 'var(--card)' : 'var(--accent)',
+                        color: draft.frontmatter.draft ? 'var(--foreground)' : 'var(--accent-contrast)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isEnglish ? 'False' : '否'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateFrontmatter('draft', true)}
+                      style={{
+                        padding: '11px 12px',
+                        borderRadius: 10,
+                        border: draft.frontmatter.draft ? '1px solid var(--accent)' : '1px solid var(--border)',
+                        background: draft.frontmatter.draft ? 'var(--accent)' : 'var(--card)',
+                        color: draft.frontmatter.draft ? 'var(--accent-contrast)' : 'var(--foreground)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {isEnglish ? 'True' : '是'}
+                    </button>
+                  </div>
+                </div>
 
-                <label>
-                  <div style={labelTitleStyle}>{isEnglish ? 'Tags (comma-separated)' : '标签（逗号分隔）'}</div>
-                  <input
-                    type="text"
-                    value={draft.frontmatter.tags.join(', ')}
-                    onChange={(e) =>
-                      updateFrontmatter(
-                        'tags',
-                        e.target.value.split(',').map((item) => item.trim()).filter(Boolean),
-                      )
-                    }
-                    style={inputStyle}
-                  />
-                </label>
+                {frontmatterPreferences.slugFieldEnabled ? (
+                  <label>
+                    <div style={labelTitleStyle}>
+                      {isEnglish
+                        ? `Slug (${frontmatterPreferences.slugFieldName})`
+                        : `Slug（${frontmatterPreferences.slugFieldName}）`}
+                    </div>
+                    <input
+                      type="text"
+                      value={draft.frontmatter.slug}
+                      onChange={(e) => updateFrontmatter('slug', e.target.value)}
+                      style={inputStyle}
+                    />
+                  </label>
+                ) : null}
 
-                <label>
-                  <div style={labelTitleStyle}>{isEnglish ? 'Cover Image' : '封面图'}</div>
-                  <input
-                    type="text"
-                    value={draft.frontmatter.image}
-                    onChange={(e) => updateFrontmatter('image', e.target.value)}
-                    style={inputStyle}
-                  />
-                </label>
+                {frontmatterPreferences.categoriesFieldEnabled ? (
+                  <div>
+                    <div style={labelTitleStyle}>
+                      {isEnglish
+                        ? `Categories (${frontmatterPreferences.categoriesFieldName})`
+                        : `分类（${frontmatterPreferences.categoriesFieldName}）`}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: 'flex',
+                        gap: 8,
+                        overflowX: 'auto',
+                        paddingBottom: 2,
+                      }}
+                    >
+                      {categoryOptions.length ? (
+                        categoryOptions.map((item) => {
+                          const active = draft.frontmatter.categories.includes(item)
+                          return (
+                            <button
+                              key={item}
+                              type="button"
+                              onClick={() => toggleCategory(item)}
+                              style={{
+                                whiteSpace: 'nowrap',
+                                padding: '9px 12px',
+                                borderRadius: 999,
+                                border: active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                                background: active ? 'var(--accent)' : 'var(--card)',
+                                color: active ? 'var(--accent-contrast)' : 'var(--foreground)',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                fontSize: 13,
+                                flex: '0 0 auto',
+                              }}
+                            >
+                              {item}
+                            </button>
+                          )
+                        })
+                      ) : (
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {isEnglish ? 'No preset categories yet.' : '还没有固定分类，请先到首页发布偏好添加。'}
+                        </div>
+                      )}
+                    </div>
+                    {draft.frontmatter.categories.length ? (
+                      <div style={{ marginTop: 8, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {draft.frontmatter.categories.map((item) => (
+                          <span
+                            key={`selected-${item}`}
+                            style={{
+                              padding: '5px 10px',
+                              borderRadius: 999,
+                              border: '1px solid var(--accent)',
+                              background: 'var(--accent-soft)',
+                              color: 'var(--accent-soft-text)',
+                              fontSize: 12,
+                              fontWeight: 700,
+                            }}
+                          >
+                            {item}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                        gap: 8,
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={categoryInput}
+                        onChange={(e) => setCategoryInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            addCategoryFromInput()
+                          }
+                        }}
+                        placeholder={isEnglish ? 'Add custom category' : '添加自定义分类'}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={addCategoryFromInput}
+                        style={{
+                          marginTop: 8,
+                          padding: '0 14px',
+                          borderRadius: 10,
+                          border: '1px solid var(--accent)',
+                          background: 'var(--accent)',
+                          color: 'var(--accent-contrast)',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {isEnglish ? 'Tap categories to select/unselect on mobile.' : '手机端可直接点按分类进行选中/取消。'}
+                    </div>
+                  </div>
+                ) : null}
+
+                {frontmatterPreferences.tagsFieldEnabled ? (
+                  <div>
+                    <div style={labelTitleStyle}>
+                      {isEnglish
+                        ? `Tags (${frontmatterPreferences.tagsFieldName})`
+                        : `标签（${frontmatterPreferences.tagsFieldName}）`}
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 8,
+                        display: 'grid',
+                        gridTemplateColumns: 'minmax(0, 1fr) auto',
+                        gap: 8,
+                      }}
+                    >
+                      <input
+                        type="text"
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value.replace(/，/g, ','))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            addTagsFromInput()
+                          }
+                        }}
+                        placeholder={isEnglish ? 'Enter tag, use comma for multiple' : '输入标签，多个请用英文逗号'}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={addTagsFromInput}
+                        style={{
+                          marginTop: 8,
+                          padding: '0 14px',
+                          borderRadius: 10,
+                          border: '1px solid var(--accent)',
+                          background: 'var(--accent)',
+                          color: 'var(--accent-contrast)',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {isEnglish ? 'Add' : '添加'}
+                      </button>
+                    </div>
+                    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {draft.frontmatter.tags.length ? (
+                        draft.frontmatter.tags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            style={{
+                              padding: '7px 10px',
+                              borderRadius: 999,
+                              border: '1px solid var(--border)',
+                              background: 'var(--card)',
+                              color: 'var(--foreground)',
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                            title={isEnglish ? 'Tap to remove' : '点击删除'}
+                          >
+                            {tag} ×
+                          </button>
+                        ))
+                      ) : (
+                        <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {isEnglish ? 'No tags yet.' : '暂无标签。'}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {isEnglish ? 'Only English comma is used as separator.' : '仅使用英文逗号作为分隔符。'}
+                    </div>
+                  </div>
+                ) : null}
+
+                {frontmatterPreferences.coverImageFieldEnabled ? (
+                  <label>
+                    <div style={labelTitleStyle}>
+                      {isEnglish
+                        ? `Cover Image (${frontmatterPreferences.coverImageFieldName})`
+                        : `封面图（${frontmatterPreferences.coverImageFieldName}）`}
+                    </div>
+                    <input
+                      type="text"
+                      value={draft.frontmatter.image}
+                      onChange={(e) => updateFrontmatter('image', e.target.value)}
+                      style={inputStyle}
+                    />
+                  </label>
+                ) : null}
+
+                {configuredExtraFields.length ? (
+                  <div style={{ display: 'grid', gap: 12 }}>
+                    {configuredExtraFields.map((field) => {
+                      const currentValue =
+                        draft.frontmatter.customFields.find(
+                          (item) =>
+                            normalizeFieldKey(item.key) === normalizeFieldKey(field.key),
+                        )?.value || ''
+
+                      return (
+                        <label key={field.id}>
+                          <div style={labelTitleStyle}>
+                            {isEnglish
+                              ? `${field.key} (${field.type === 'list' ? 'comma-separated' : 'text'})`
+                              : `${field.key}（${field.type === 'list' ? '逗号分隔' : '文本'}）`}
+                          </div>
+                          <input
+                            type="text"
+                            value={currentValue}
+                            onChange={(e) =>
+                              updateConfiguredExtraFieldValue(
+                                field.key,
+                                field.type,
+                                e.target.value,
+                              )
+                            }
+                            style={inputStyle}
+                          />
+                        </label>
+                      )
+                    })}
+                  </div>
+                ) : null}
 
                 <div style={{ display: 'grid', gap: 10 }}>
                   <div
@@ -713,7 +1278,7 @@ export default function EditorPage() {
                     </button>
                   </div>
 
-                  {draft.frontmatter.customFields.map((field) => (
+                  {manualCustomFields.map((field) => (
                     <div
                       key={field.id}
                       style={{
@@ -860,6 +1425,7 @@ export default function EditorPage() {
                 <div style={{ display: 'grid', gap: 10, marginTop: 14 }}>
                   {draft.assets.map((asset) => {
                     const isCover = draft.frontmatter.image === asset.name
+                    const copied = copiedAssetName === asset.name
 
                     return (
                       <div
@@ -869,8 +1435,8 @@ export default function EditorPage() {
                           borderRadius: 12,
                           padding: 10,
                           display: 'grid',
-                          gridTemplateColumns: '64px 1fr auto',
-                          gap: 10,
+                          gridTemplateColumns: '56px minmax(0, 1fr) 34px 34px 34px',
+                          gap: 6,
                           alignItems: 'center',
                           background: 'var(--card-muted)',
                         }}
@@ -879,8 +1445,8 @@ export default function EditorPage() {
                           type="button"
                           onClick={() => setPreviewAsset(asset)}
                           style={{
-                            width: 64,
-                            height: 64,
+                            width: 56,
+                            height: 56,
                             borderRadius: 10,
                             overflow: 'hidden',
                             background: 'var(--card)',
@@ -904,60 +1470,71 @@ export default function EditorPage() {
                               }}
                             />
                           ) : (
-                            <span style={{ fontSize: 12, color: 'var(--muted)' }}>{isEnglish ? 'No preview' : '无预览'}</span>
+                            <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                              {isEnglish ? 'No preview' : '无预览'}
+                            </span>
                           )}
                         </button>
 
-                        <div style={{ minWidth: 0 }}>
-                          <div
+                        <button
+                          type="button"
+                          onClick={() => copyAssetName(asset.name)}
+                          title={asset.name}
+                          style={{
+                            minWidth: 0,
+                            width: '100%',
+                            padding: '7px 10px',
+                            borderRadius: 10,
+                            border: '1px dashed var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--foreground)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                          }}
+                        >
+                          <span
                             style={{
-                              fontWeight: 600,
-                              fontSize: 14,
-                              wordBreak: 'break-all',
-                              lineHeight: 1.4,
+                              fontWeight: 700,
+                              fontSize: 13,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
                             {asset.name}
-                          </div>
+                          </span>
+                          <span style={{ fontSize: 12, color: copied ? 'var(--accent-soft-text)' : 'var(--muted)', flexShrink: 0 }}>
+                            {copied ? (isEnglish ? 'Copied' : '已复制') : (isEnglish ? 'Copy' : '复制')}
+                          </span>
+                        </button>
 
-                          <div
-                            style={{
-                              marginTop: 4,
-                              fontSize: 12,
-                              color: isCover ? 'var(--accent-soft-text)' : 'var(--muted)',
-                            }}
-                          >
-                            {isCover ? (isEnglish ? 'Current cover image' : '当前封面图') : isEnglish ? 'Regular image' : '普通图片'}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: 8,
-                            justifyContent: 'flex-end',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                          }}
-                        >
                           <button
                             type="button"
                             onClick={() => setAsCover(asset.name)}
                             style={{
-                              padding: '10px 14px',
+                              width: 34,
+                              height: 34,
                               cursor: 'pointer',
-                              borderRadius: 10,
+                              borderRadius: 8,
                               border: isCover
                                 ? '1px solid var(--accent)'
                                 : '1px solid var(--border)',
                               background: isCover ? 'var(--accent)' : 'var(--card)',
                               color: isCover ? 'var(--accent-contrast)' : 'var(--foreground)',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
+                            title={isEnglish ? 'Set as cover' : '设为封面'}
+                            aria-label={isEnglish ? 'Set as cover' : '设为封面'}
                           >
-                            {isEnglish ? 'Cover' : '封面'}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M12 3.8L14.6 9.2L20.5 10L16.2 14.1L17.3 20L12 17.1L6.7 20L7.8 14.1L3.5 10L9.4 9.2L12 3.8Z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+                            </svg>
                           </button>
 
                           <button
@@ -966,18 +1543,23 @@ export default function EditorPage() {
                               insertMarkdownAtCursor(`![${getAssetAltText(asset.name)}](${asset.name})`)
                             }
                             style={{
-                              padding: '10px 14px',
+                              width: 34,
+                              height: 34,
                               cursor: 'pointer',
-                              borderRadius: 10,
+                              borderRadius: 8,
                               border: '1px solid var(--border)',
                               background: 'var(--card)',
                               color: 'var(--foreground)',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
+                            title={isEnglish ? 'Insert image link' : '插入图片链接'}
+                            aria-label={isEnglish ? 'Insert image link' : '插入图片链接'}
                           >
-                            {isEnglish ? 'Insert' : '插入'}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
                           </button>
 
                           <button
@@ -990,14 +1572,23 @@ export default function EditorPage() {
                               border: '1px solid #ef4444',
                               background: 'var(--card)',
                               color: '#ef4444',
-                              fontSize: 14,
-                              fontWeight: 600,
-                              whiteSpace: 'nowrap',
+                              width: 34,
+                              height: 34,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
+                            title={isEnglish ? 'Delete' : '删除'}
+                            aria-label={isEnglish ? 'Delete' : '删除'}
                           >
-                            {isEnglish ? 'Delete' : '删除'}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                              <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              <path d="M9 7V5.8C9 4.81 9.81 4 10.8 4H13.2C14.19 4 15 4.81 15 5.8V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              <path d="M7.5 7L8.2 18.1C8.27 19.14 9.14 19.95 10.19 19.95H13.81C14.86 19.95 15.73 19.14 15.8 18.1L16.5 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              <path d="M10 10.5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                              <path d="M14 10.5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                            </svg>
                           </button>
-                        </div>
                       </div>
                     )
                   })}
@@ -1044,91 +1635,42 @@ export default function EditorPage() {
             {bodyOpen ? (
               <>
                 <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setMarkdownToolsOpen((prev) => !prev)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: 12,
-                      width: '100%',
-                      padding: '12px 14px',
-                      borderRadius: 12,
-                      border: '1px solid var(--border)',
-                      background: 'var(--card-muted)',
-                      color: 'var(--foreground)',
-                      cursor: 'pointer',
-                      fontSize: 14,
-                      fontWeight: 700,
-                    }}
-                  >
-                    <span>{isEnglish ? 'Markdown Tools' : 'Markdown 工具'}</span>
-                    <span
-                      style={{
-                        fontSize: 16,
-                        transform: markdownToolsOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 160ms ease',
-                      }}
-                    >
-                      ▼
-                    </span>
-                  </button>
-
-                  {markdownToolsOpen ? (
-                    <>
-                      <div
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))',
-                          gap: 10,
-                        }}
-                      >
-                        {toolbarActions.map((action) => (
-                          <button
-                            key={action.key}
-                            type="button"
-                            onClick={action.onClick}
-                            title={action.label}
-                            aria-label={action.label}
-                            style={{
-                              padding: '10px 12px',
-                              borderRadius: 12,
-                              border: '1px solid var(--border)',
-                              background: 'var(--card-muted)',
-                              color: 'var(--foreground)',
-                              cursor: 'pointer',
-                              fontSize: 14,
-                              fontWeight: 700,
-                              minHeight: 44,
-                            }}
-                          >
-                            {action.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                        {isEnglish
-                          ? 'Select text first to format it, or tap a button to insert a Markdown snippet at the cursor.'
-                          : '先选中文字可直接套用格式；未选中时会在光标处插入一段 Markdown 模板。'}
-                      </div>
-                    </>
-                  ) : null}
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                    {isEnglish
+                      ? 'Mobile tip: type `/` in the editor to open Markdown commands near the cursor.'
+                      : '手机提示：在正文中输入 `/` 可快速唤起 Markdown 命令。'}
+                  </div>
                 </div>
 
                 <textarea
                   ref={bodyTextareaRef}
                   value={draft.body}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const nextValue = e.target.value
+                    const cursor = e.target.selectionStart ?? nextValue.length
                     setDraft((prev) => {
                       if (!prev) return prev
                       return {
                         ...prev,
-                        body: e.target.value,
+                        body: nextValue,
                       }
                     })
-                  }
+                    updateSlashStateByText(nextValue, cursor)
+                  }}
+                  onKeyDown={(e) => {
+                    if (!slashState.open) return
+                    if (e.key === 'Escape') {
+                      e.preventDefault()
+                      setSlashState({ open: false, query: '', start: 0, end: 0 })
+                      return
+                    }
+                    if (e.key === 'Enter' || e.key === 'Tab') {
+                      const first = filteredSlashCommands[0]
+                      if (!first) return
+                      e.preventDefault()
+                      replaceSlashToken(first.markdown)
+                    }
+                  }}
                   rows={12}
                   style={{
                     ...inputStyle,
@@ -1140,6 +1682,62 @@ export default function EditorPage() {
                     lineHeight: 1.6,
                   }}
                 />
+                {slashState.open ? (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      top: slashMenuPos.top,
+                      left: slashMenuPos.left,
+                      width: 240,
+                      border: '1px solid var(--border)',
+                      borderRadius: 12,
+                      background: 'var(--card)',
+                      boxShadow: 'var(--shadow)',
+                      overflow: 'hidden',
+                      zIndex: 150,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: 'var(--muted)',
+                        padding: '8px 10px',
+                        borderBottom: '1px solid var(--border)',
+                      }}
+                    >
+                      {isEnglish
+                        ? 'Slash commands: type after "/" and press Enter'
+                        : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
+                    </div>
+                    <div style={{ display: 'grid' }}>
+                      {filteredSlashCommands.slice(0, 6).map((command) => (
+                        <button
+                          key={command.key}
+                          type="button"
+                          onClick={() => replaceSlashToken(command.markdown)}
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 12px',
+                            border: 'none',
+                            borderTop: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--foreground)',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            fontWeight: 600,
+                          }}
+                        >
+                          /{command.key} - {command.label}
+                        </button>
+                      ))}
+                      {!filteredSlashCommands.length ? (
+                        <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--muted)' }}>
+                          {isEnglish ? 'No matching command.' : '没有匹配的命令。'}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
               </>
             ) : null}
           </section>
@@ -1343,13 +1941,13 @@ export default function EditorPage() {
                   {previewAsset.name}
                 </div>
                 <div style={{ marginTop: 4, fontSize: 12, color: 'rgba(255,255,255,0.72)' }}>
-                  {isEnglish ? 'Tap outside to close' : '点空白处关闭'}
+                  <div style={{ textAlign: 'center' }}>{isEnglish ? 'Tap outside to close' : '点空白处关闭'}</div>
                 </div>
               </div>
 
               <button
                 type="button"
-                onClick={() => setPreviewAsset(null)}
+                onClick={() => copyAssetName(previewAsset.name)}
                 style={{
                   padding: '10px 12px',
                   borderRadius: 10,
@@ -1361,7 +1959,7 @@ export default function EditorPage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {isEnglish ? 'Close' : '关闭'}
+                {isEnglish ? 'Copy Name' : '复制标题'}
               </button>
             </div>
 

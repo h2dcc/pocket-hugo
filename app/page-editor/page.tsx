@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -6,6 +6,7 @@ import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import ImageUploader from '@/components/post/ImageUploader'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import { saveDraftToStorage } from '@/lib/draft-storage'
 import {
   loadPageDraftFromStorage,
   removePageDraftFromStorage,
@@ -22,6 +23,7 @@ import {
   loadSiteSettingsFromStorage,
   type SiteSettings,
 } from '@/lib/site-settings'
+import { createEmptyDraft } from '@/lib/post-template'
 import { useLanguage } from '@/lib/use-language'
 import type { DraftAsset } from '@/lib/types'
 
@@ -29,6 +31,83 @@ type PageConfigResponse = {
   ok: boolean
   pageConfig?: { filePath: string; mode: 'page' | 'live' } | null
   error?: string
+}
+
+type SlashTarget = 'entry' | 'body'
+
+type SlashCommand = {
+  key: string
+  label: string
+  keywords: string[]
+  markdown: string
+}
+
+type SlashState = {
+  open: boolean
+  target: SlashTarget
+  query: string
+  start: number
+  end: number
+}
+
+function isImageMarkdown(markdown: string) {
+  return /^!\[[^\]]*]\([^)]+\)$/.test(markdown.trim())
+}
+
+function buildStandaloneImageBlock(markdown: string) {
+  return `\n${markdown.trim()}\n`
+}
+
+function normalizeFolderName(input: string) {
+  return input
+    .trim()
+    .toLowerCase()
+    .replace(/[\\/]+/g, '-')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+}
+
+function getDatePartsWithOffset(offsetHours: number) {
+  const now = new Date()
+  const utcMillis = now.getTime() + now.getTimezoneOffset() * 60_000
+  const targetMillis = utcMillis + offsetHours * 60 * 60_000
+  const target = new Date(targetMillis)
+  const year = target.getUTCFullYear()
+  const month = String(target.getUTCMonth() + 1).padStart(2, '0')
+  const day = String(target.getUTCDate()).padStart(2, '0')
+  const hours = String(target.getUTCHours()).padStart(2, '0')
+  const minutes = String(target.getUTCMinutes()).padStart(2, '0')
+  const seconds = String(target.getUTCSeconds()).padStart(2, '0')
+  return { year, month, day, hours, minutes, seconds }
+}
+
+function getCurrentDateTime(offsetHours: number) {
+  const { year, month, day, hours, minutes, seconds } = getDatePartsWithOffset(offsetHours)
+  const sign = offsetHours >= 0 ? '+' : '-'
+  const absOffset = Math.abs(offsetHours)
+  const offsetHourText = String(absOffset).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHourText}:00`
+}
+
+function estimateSlashMenuPosition(
+  textarea: HTMLTextAreaElement,
+  value: string,
+  cursor: number,
+) {
+  const rect = textarea.getBoundingClientRect()
+  const before = value.slice(0, cursor)
+  const lines = before.split('\n')
+  const line = lines[lines.length - 1] || ''
+  const lineHeight = 26
+  const charWidth = 8.2
+
+  const rawLeft = rect.left + 14 + line.length * charWidth
+  const maxLeft = Math.max(rect.left + 12, rect.right - 260)
+  const left = Math.min(rawLeft, maxLeft)
+  const top = Math.max(12, rect.top + 12 + (lines.length - 1) * lineHeight - 10)
+
+  return { top, left }
 }
 
 function mergeDrafts(remoteDraft: PageDraft, localDraft: PageDraft | null) {
@@ -68,11 +147,26 @@ export default function PageEditorPage() {
   const [newEntryContent, setNewEntryContent] = useState('## ')
   const [publishing, setPublishing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
-  const [showTools, setShowTools] = useState(false)
   const [imagesOpen, setImagesOpen] = useState(true)
   const [entriesOpen, setEntriesOpen] = useState(true)
   const [pageContentOpen, setPageContentOpen] = useState(true)
+  const [frontmatterOpen, setFrontmatterOpen] = useState(false)
+  const [transferOpen, setTransferOpen] = useState(false)
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS)
+  const [copiedAssetName, setCopiedAssetName] = useState('')
+  const [previewAsset, setPreviewAsset] = useState<DraftAsset | null>(null)
+  const [transferFolderName, setTransferFolderName] = useState('')
+  const [transferError, setTransferError] = useState('')
+  const [transferStatus, setTransferStatus] = useState('')
+  const [transferring, setTransferring] = useState(false)
+  const [slashState, setSlashState] = useState<SlashState>({
+    open: false,
+    target: 'body',
+    query: '',
+    start: 0,
+    end: 0,
+  })
+  const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 })
 
   const card: React.CSSProperties = {
     border: '1px solid var(--border)',
@@ -121,7 +215,7 @@ export default function PageEditorPage() {
           throw new Error(
             isEnglish
               ? 'Please set up Page Editor on the home page first.'
-              : '请先回首页完成页面编辑配置。',
+              : '请先在首页完成页面编辑配置。',
           )
         }
 
@@ -213,29 +307,117 @@ export default function PageEditorPage() {
     current: string,
     content: string,
     apply: (next: string) => void,
+    options?: { imageBlock?: boolean },
   ) {
+    const isImageBlock = options?.imageBlock ?? false
+    const insertionText = isImageBlock ? buildStandaloneImageBlock(content) : content
+
     if (!textarea) {
-      apply(current ? `${current}\n\n${content}` : content)
+      apply(current ? `${current}${isImageBlock ? insertionText : `\n\n${content}`}` : content)
       return
     }
     const start = textarea.selectionStart ?? current.length
     const end = textarea.selectionEnd ?? current.length
-    const next = current.slice(0, start) + content + current.slice(end)
+    const insertionStart = isImageBlock
+      ? (current.indexOf('\n', end) === -1 ? current.length : current.indexOf('\n', end))
+      : start
+    const insertionEnd = isImageBlock ? insertionStart : end
+    const next = current.slice(0, insertionStart) + insertionText + current.slice(insertionEnd)
     apply(next)
     requestAnimationFrame(() => {
       textarea.focus()
-      const cursor = start + content.length
+      const cursor = insertionStart + insertionText.length
       textarea.setSelectionRange(cursor, cursor)
     })
   }
 
-  function insertMarkdown(markdown: string) {
+  function insertImageMarkdown(markdown: string) {
     if (!draft) return
+    const imageBlock = isImageMarkdown(markdown)
     if (draft.mode === 'live') {
-      insertInto(entryRef.current, newEntryContent, markdown, setNewEntryContent)
+      insertInto(entryRef.current, newEntryContent, markdown, setNewEntryContent, { imageBlock })
       return
     }
-    insertInto(bodyRef.current, draft.body, markdown, updateBody)
+    insertInto(bodyRef.current, draft.body, markdown, updateBody, { imageBlock })
+  }
+
+  async function copyAssetName(assetName: string) {
+    try {
+      await navigator.clipboard.writeText(assetName)
+      setCopiedAssetName(assetName)
+      setTimeout(() => setCopiedAssetName(''), 1200)
+    } catch {
+      setStatus(
+        isEnglish ? 'Unable to copy file name on this device' : '当前设备无法复制文件名',
+      )
+    }
+  }
+
+  function updateSlashState(target: SlashTarget, value: string, cursor: number) {
+    const textarea = target === 'entry' ? entryRef.current : bodyRef.current
+    const textBeforeCursor = value.slice(0, cursor)
+    const slashIndex = textBeforeCursor.lastIndexOf('/')
+    if (slashIndex < 0) {
+      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
+      return
+    }
+
+    const prefixChar = slashIndex === 0 ? ' ' : textBeforeCursor[slashIndex - 1]
+    const commandText = textBeforeCursor.slice(slashIndex + 1)
+    const isLineBreakInside = commandText.includes('\n')
+    const hasSpaceInside = /\s/.test(commandText)
+    const validPrefix = /\s/.test(prefixChar)
+
+    if (!validPrefix || isLineBreakInside || hasSpaceInside) {
+      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
+      return
+    }
+
+    setSlashState({
+      open: true,
+      target,
+      query: commandText.toLowerCase(),
+      start: slashIndex,
+      end: cursor,
+    })
+    if (textarea) {
+      setSlashMenuPos(estimateSlashMenuPosition(textarea, value, cursor))
+    }
+  }
+
+  function replaceSlashToken(markdown: string) {
+    if (!draft) return
+
+    if (slashState.target === 'entry') {
+      const textarea = entryRef.current
+      const nextValue =
+        newEntryContent.slice(0, slashState.start) +
+        markdown +
+        newEntryContent.slice(slashState.end)
+      const nextCursor = slashState.start + markdown.length
+      setNewEntryContent(nextValue)
+      requestAnimationFrame(() => {
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(nextCursor, nextCursor)
+      })
+    } else {
+      const textarea = bodyRef.current
+      const currentBody = draft.body
+      const nextValue =
+        currentBody.slice(0, slashState.start) +
+        markdown +
+        currentBody.slice(slashState.end)
+      const nextCursor = slashState.start + markdown.length
+      updateBody(nextValue)
+      requestAnimationFrame(() => {
+        if (!textarea) return
+        textarea.focus()
+        textarea.setSelectionRange(nextCursor, nextCursor)
+      })
+    }
+
+    setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
   }
 
   function addEntry() {
@@ -296,6 +478,64 @@ export default function PageEditorPage() {
     }))
   }
 
+  async function transferCurrentPageToPost() {
+    if (!draft) return
+    if (draft.mode !== 'live') return
+    const normalizedFolderName = normalizeFolderName(transferFolderName)
+    if (!normalizedFolderName) {
+      setTransferError(isEnglish ? 'Please enter a target post folder name.' : '请填写文章目录名。')
+      return
+    }
+
+    setTransferring(true)
+    setTransferError('')
+    setTransferStatus('')
+    try {
+      const response = await fetch('/api/github/transfer-page-to-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceFilePath: draft.filePath,
+          targetFolderName: normalizedFolderName,
+          mode: draft.mode,
+        }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.ok) {
+        throw new Error(
+          result.error || (isEnglish ? 'Failed to transfer page to post.' : '转移失败。'),
+        )
+      }
+      const settingsTimezone = settings.timezoneOffsetHours ?? 8
+      const postDraft = createEmptyDraft(
+        normalizedFolderName,
+        normalizedFolderName.replace(/^\d{4}-\d{2}-\d{2}-/, ''),
+        getCurrentDateTime(settingsTimezone),
+        settings.frontmatterPreferences,
+      )
+      postDraft.frontmatter.title = isEnglish ? 'Transferred From Page' : '一键转移页面'
+      postDraft.body = String(result.body || '').trim()
+      postDraft.assets = (result.assets || []) as DraftAsset[]
+      postDraft.remoteAssetNames = []
+      if (postDraft.assets[0]?.name) {
+        postDraft.frontmatter.image = postDraft.assets[0].name
+      }
+      saveDraftToStorage(postDraft)
+      setTransferStatus(
+        isEnglish
+          ? `Draft created: ${normalizedFolderName} (${result.loadedAssetCount || 0} assets)`
+          : `草稿已创建：${normalizedFolderName}（${result.loadedAssetCount || 0} 张图片）`,
+      )
+      router.push(`/editor/${normalizedFolderName}`)
+    } catch (error) {
+      setTransferError(
+        error instanceof Error ? error.message : isEnglish ? 'Failed to transfer page to post.' : '转移失败。',
+      )
+    } finally {
+      setTransferring(false)
+    }
+  }
+
   async function publish() {
     if (!draft) return
 
@@ -342,17 +582,71 @@ export default function PageEditorPage() {
     }
   }
 
-  const tools = [
-    { key: 'h2', label: 'H2', onClick: () => insertMarkdown('## Section Title') },
-    { key: 'bold', label: isEnglish ? 'Bold' : '加粗', onClick: () => insertMarkdown('**bold text**') },
-    { key: 'italic', label: isEnglish ? 'Italic' : '斜体', onClick: () => insertMarkdown('*italic text*') },
-    { key: 'link', label: isEnglish ? 'Link' : '链接', onClick: () => insertMarkdown('[link text](https://example.com)') },
-    { key: 'code', label: isEnglish ? 'Code' : '代码', onClick: () => insertMarkdown('`code`') },
-    { key: 'codeblock', label: isEnglish ? 'Code Block' : '代码块', onClick: () => insertMarkdown('\n```ts\nconst example = true\n```\n') },
-    { key: 'quote', label: isEnglish ? 'Quote' : '引用', onClick: () => insertMarkdown('> quoted text') },
-    { key: 'list', label: isEnglish ? 'List' : '列表', onClick: () => insertMarkdown('- list item') },
-    { key: 'table', label: isEnglish ? 'Table' : '表格', onClick: () => insertMarkdown('\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n') },
+  const slashCommands: SlashCommand[] = [
+    {
+      key: 'h2',
+      label: isEnglish ? 'Heading' : '标题',
+      keywords: ['h2', 'heading', 'title'],
+      markdown: isEnglish ? '## Section Title' : '## 小节标题',
+    },
+    {
+      key: 'bold',
+      label: isEnglish ? 'Bold' : '加粗',
+      keywords: ['bold', 'strong'],
+      markdown: isEnglish ? '**bold text**' : '**加粗文字**',
+    },
+    {
+      key: 'italic',
+      label: isEnglish ? 'Italic' : '斜体',
+      keywords: ['italic'],
+      markdown: isEnglish ? '*italic text*' : '*斜体文字*',
+    },
+    {
+      key: 'link',
+      label: isEnglish ? 'Link' : '链接',
+      keywords: ['link', 'url'],
+      markdown: isEnglish ? '[link text](https://example.com)' : '[链接文字](https://example.com)',
+    },
+    {
+      key: 'code',
+      label: isEnglish ? 'Code' : '代码',
+      keywords: ['code', 'inline'],
+      markdown: isEnglish ? '`code`' : '`代码`',
+    },
+    {
+      key: 'codeblock',
+      label: isEnglish ? 'Code Block' : '代码块',
+      keywords: ['codeblock', 'block'],
+      markdown: '\n```ts\nconst example = true\n```\n',
+    },
+    {
+      key: 'quote',
+      label: isEnglish ? 'Quote' : '引用',
+      keywords: ['quote'],
+      markdown: isEnglish ? '> quoted text' : '> 引用内容',
+    },
+    {
+      key: 'list',
+      label: isEnglish ? 'List' : '列表',
+      keywords: ['list', 'ul'],
+      markdown: isEnglish ? '- list item' : '- 列表项',
+    },
+    {
+      key: 'table',
+      label: isEnglish ? 'Table' : '表格',
+      keywords: ['table'],
+      markdown: '\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n',
+    },
   ]
+
+  const filteredSlashCommands = slashState.query
+    ? slashCommands.filter((command) =>
+        [command.label, command.key, ...command.keywords]
+          .join(' ')
+          .toLowerCase()
+          .includes(slashState.query),
+      )
+    : slashCommands
 
   if (loading || !draft) {
     return (
@@ -402,7 +696,51 @@ export default function PageEditorPage() {
             <section style={card}>
               <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Quick Entry' : '快速记录'}</h2>
               <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                <textarea ref={entryRef} value={newEntryContent} onChange={(event) => setNewEntryContent(event.target.value)} rows={5} style={{ ...input, minHeight: 140, resize: 'vertical', lineHeight: 1.7 }} />
+                <textarea
+                  ref={entryRef}
+                  value={newEntryContent}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    const cursor = event.target.selectionStart ?? nextValue.length
+                    setNewEntryContent(nextValue)
+                    updateSlashState('entry', nextValue, cursor)
+                  }}
+                  onKeyDown={(event) => {
+                    if (!(slashState.open && slashState.target === 'entry')) return
+                    if (event.key === 'Escape') {
+                      event.preventDefault()
+                      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
+                      return
+                    }
+                    if (event.key === 'Enter' || event.key === 'Tab') {
+                      const first = filteredSlashCommands[0]
+                      if (!first) return
+                      event.preventDefault()
+                      replaceSlashToken(first.markdown)
+                    }
+                  }}
+                  rows={5}
+                  style={{ ...input, minHeight: 140, resize: 'vertical', lineHeight: 1.7 }}
+                />
+                {slashState.open && slashState.target === 'entry' ? (
+                  <div style={{ position: 'fixed', top: slashMenuPos.top, left: slashMenuPos.left, width: 240, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', boxShadow: 'var(--shadow)', overflow: 'hidden', zIndex: 150 }}>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+                      {isEnglish ? 'Slash commands: type after "/" and press Enter' : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
+                    </div>
+                    <div style={{ display: 'grid' }}>
+                      {filteredSlashCommands.slice(0, 6).map((command) => (
+                        <button
+                          key={`entry-${command.key}`}
+                          type="button"
+                          onClick={() => replaceSlashToken(command.markdown)}
+                          style={{ textAlign: 'left', padding: '10px 12px', border: 'none', borderTop: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                        >
+                          /{command.key} - {command.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
                 <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
                   {isEnglish ? 'A timestamp tag will be added automatically. Keep the first line as `## Your Title`.' : '会自动附带时间戳标签。请保持第一行是 `## 标题`。'}
                 </div>
@@ -422,23 +760,74 @@ export default function PageEditorPage() {
             </div>
             {imagesOpen ? (
               <div style={{ marginTop: 14, display: 'grid', gap: 14 }}>
-                <ImageUploader existingAssets={draft.assets} settings={settings} onUploaded={addAsset} onInsertMarkdown={insertMarkdown} />
+                <ImageUploader existingAssets={draft.assets} settings={settings} onUploaded={addAsset} onInsertMarkdown={insertImageMarkdown} />
                 {draft.assets.map((asset) => (
-                  <div key={asset.name} style={{ padding: 12, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card-muted)', display: 'grid', gap: 10 }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '72px minmax(0, 1fr)', gap: 12, alignItems: 'center' }}>
-                      <div style={{ width: 72, height: 72, borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--card)' }}>
-                        {asset.previewUrl ? <img src={asset.previewUrl} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
-                      </div>
-                      <div style={{ fontWeight: 700, wordBreak: 'break-all' }}>{asset.name}</div>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
-                      <button type="button" onClick={() => insertMarkdown(`![${asset.name.replace(/\.[^.]+$/i, '')}](${asset.name})`)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontWeight: 700 }}>
-                        {isEnglish ? 'Insert' : '插入'}
+                  <div key={asset.name} style={{ padding: 10, borderRadius: 14, border: '1px solid var(--border)', background: 'var(--card-muted)', display: 'grid', gridTemplateColumns: '56px minmax(0, 1fr) 34px 34px', gap: 6, alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewAsset(asset)}
+                      style={{ width: 56, height: 56, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--card)', padding: 0, cursor: 'pointer' }}
+                    >
+                      {asset.previewUrl ? <img src={asset.previewUrl} alt={asset.name} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} /> : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyAssetName(asset.name)}
+                      title={asset.name}
+                      style={{
+                        minWidth: 0,
+                        width: '100%',
+                        padding: '7px 10px',
+                        borderRadius: 10,
+                        border: '1px dashed var(--border)',
+                        background: 'var(--card)',
+                        color: 'var(--foreground)',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {asset.name}
+                      </span>
+                      <span style={{ fontSize: 12, color: copiedAssetName === asset.name ? 'var(--accent-soft-text)' : 'var(--muted)', flexShrink: 0 }}>
+                        {copiedAssetName === asset.name ? (isEnglish ? 'Copied' : '已复制') : (isEnglish ? 'Copy' : '复制')}
+                      </span>
+                    </button>
+                    <button type="button" onClick={() => insertImageMarkdown(`![${asset.name.replace(/\.[^.]+$/i, '')}](${asset.name})`)} title={isEnglish ? 'Insert image link' : '插入图片链接'} aria-label={isEnglish ? 'Insert image link' : '插入图片链接'} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
                       </button>
-                      <button type="button" onClick={() => deleteAsset(asset.name)} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid color-mix(in srgb, var(--danger) 36%, var(--border) 64%)', background: 'var(--card)', color: 'var(--danger)', fontWeight: 700 }}>
-                        {isEnglish ? 'Delete' : '删除'}
+                      <button
+                        type="button"
+                        onClick={() => deleteAsset(asset.name)}
+                        style={{
+                          width: 34,
+                          height: 34,
+                          borderRadius: 8,
+                          border: '1px solid color-mix(in srgb, var(--danger) 36%, var(--border) 64%)',
+                          background: 'var(--card)',
+                          color: 'var(--danger)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                        }}
+                        title={isEnglish ? 'Delete' : '删除'}
+                        aria-label={isEnglish ? 'Delete' : '删除'}
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M4 7H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M9 7V5.8C9 4.81 9.81 4 10.8 4H13.2C14.19 4 15 4.81 15 5.8V7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M7.5 7L8.2 18.1C8.27 19.14 9.14 19.95 10.19 19.95H13.81C14.86 19.95 15.73 19.14 15.8 18.1L16.5 7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M10 10.5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                          <path d="M14 10.5V16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                        </svg>
                       </button>
-                    </div>
                   </div>
                 ))}
               </div>
@@ -477,27 +866,125 @@ export default function PageEditorPage() {
               pageContentOpen ? (
                 <>
                   <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                    <button type="button" onClick={() => setShowTools((prev) => !prev)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-muted)', color: 'var(--foreground)', fontWeight: 700 }}>
-                      <span>{isEnglish ? 'Markdown Tools' : 'Markdown 工具'}</span>
-                      <span>{showTools ? '▲' : '▼'}</span>
-                    </button>
-                    {showTools ? <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(92px, 1fr))', gap: 10 }}>{tools.map((tool) => <button key={tool.key} type="button" onClick={tool.onClick} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card-muted)', color: 'var(--foreground)', fontWeight: 700 }}>{tool.label}</button>)}</div> : null}
+                    <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {isEnglish ? 'Mobile tip: type `/` in the editor to open Markdown commands near the cursor.' : '手机提示：在正文中输入 `/` 可快速唤起 Markdown 命令。'}
+                    </div>
                   </div>
-                  <textarea ref={bodyRef} value={draft.body} onChange={(event) => updateBody(event.target.value)} rows={12} style={{ ...input, marginTop: 14, minHeight: 320, resize: 'none', overflow: 'hidden', lineHeight: 1.7, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+                  <textarea
+                    ref={bodyRef}
+                    value={draft.body}
+                    onChange={(event) => {
+                      const nextValue = event.target.value
+                      const cursor = event.target.selectionStart ?? nextValue.length
+                      updateBody(nextValue)
+                      updateSlashState('body', nextValue, cursor)
+                    }}
+                    onKeyDown={(event) => {
+                      if (!(slashState.open && slashState.target === 'body')) return
+                      if (event.key === 'Escape') {
+                        event.preventDefault()
+                        setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
+                        return
+                      }
+                      if (event.key === 'Enter' || event.key === 'Tab') {
+                        const first = filteredSlashCommands[0]
+                        if (!first) return
+                        event.preventDefault()
+                        replaceSlashToken(first.markdown)
+                      }
+                    }}
+                    rows={12}
+                    style={{ ...input, marginTop: 14, minHeight: 320, resize: 'none', overflow: 'hidden', lineHeight: 1.7, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }}
+                  />
+                  {slashState.open && slashState.target === 'body' ? (
+                    <div style={{ position: 'fixed', top: slashMenuPos.top, left: slashMenuPos.left, width: 240, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', boxShadow: 'var(--shadow)', overflow: 'hidden', zIndex: 150 }}>
+                      <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
+                        {isEnglish ? 'Slash commands: type after "/" and press Enter' : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
+                      </div>
+                      <div style={{ display: 'grid' }}>
+                        {filteredSlashCommands.slice(0, 6).map((command) => (
+                          <button
+                            key={`body-${command.key}`}
+                            type="button"
+                            onClick={() => replaceSlashToken(command.markdown)}
+                            style={{ textAlign: 'left', padding: '10px 12px', border: 'none', borderTop: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
+                          >
+                            /{command.key} - {command.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                 </>
               ) : null
             )}
           </section>
 
           <section style={card}>
-            <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Frontmatter' : 'Frontmatter 设置'}</h2>
-            <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.7, color: 'var(--muted)' }}>
-              {isEnglish
-                ? 'Only edit the fields here. Do not type the wrapping --- or +++ lines manually.'
-                : '这里只需要填写字段内容，不要手动输入外层的 --- 或 +++ 横杠。'}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Frontmatter' : 'Frontmatter 设置'}</h2>
+              <button
+                type="button"
+                onClick={() => setFrontmatterOpen((prev) => !prev)}
+                style={sectionToggleStyle(frontmatterOpen)}
+              >
+                {frontmatterOpen ? (isEnglish ? 'Collapse' : '收起') : isEnglish ? 'Expand' : '展开'}
+              </button>
             </div>
-            <textarea value={draft.frontmatterRaw} onChange={(event) => updateDraft((current) => ({ ...current, frontmatterRaw: event.target.value }))} rows={8} style={{ ...input, marginTop: 14, minHeight: 180, resize: 'vertical', lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+            {frontmatterOpen ? (
+              <>
+                <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.7, color: 'var(--muted)' }}>
+                  {isEnglish
+                    ? 'Only edit the fields here. Do not type the wrapping --- or +++ lines manually.'
+                    : '这里只需要填写字段内容，不要手动输入外层的 --- 或 +++ 横杠。'}
+                </div>
+                <textarea value={draft.frontmatterRaw} onChange={(event) => updateDraft((current) => ({ ...current, frontmatterRaw: event.target.value }))} rows={8} style={{ ...input, marginTop: 14, minHeight: 180, resize: 'vertical', lineHeight: 1.6, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} />
+              </>
+            ) : null}
           </section>
+
+          {draft.mode === 'live' ? (
+            <section style={card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: 18 }}>{isEnglish ? 'Transfer To Draft' : '一键转移页面为文章草稿'}</h2>
+                <button
+                  type="button"
+                  onClick={() => setTransferOpen((prev) => !prev)}
+                  style={sectionToggleStyle(transferOpen)}
+                >
+                  {transferOpen ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
+                </button>
+              </div>
+              {transferOpen ? (
+                <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+                  <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7 }}>
+                    {isEnglish
+                      ? 'Copy this quick timeline Markdown and related images into a new post draft. The original page remains unchanged.'
+                      : '将当前生活记录页面的 Markdown 与相关图片复制为新的文章草稿，原页面内容会保留。'}
+                  </div>
+                  <input
+                    type="text"
+                    value={transferFolderName}
+                    onChange={(event) => setTransferFolderName(event.target.value)}
+                    placeholder={isEnglish ? 'New post folder name, e.g. 2026-03-14-moments' : '新文章目录名，例如 2026-03-14-moments'}
+                    style={input}
+                  />
+                  {transferError ? <div style={{ color: 'var(--danger)', fontSize: 14 }}>{transferError}</div> : null}
+                  {transferStatus ? <div style={{ color: 'var(--accent-soft-text)', fontSize: 14 }}>{transferStatus}</div> : null}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void transferCurrentPageToPost()
+                    }}
+                    disabled={transferring}
+                    style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontWeight: 700, opacity: transferring ? 0.7 : 1 }}
+                  >
+                    {transferring ? (isEnglish ? 'Transferring...' : '转移中...') : (isEnglish ? 'Create Post Draft' : '生成文章草稿')}
+                  </button>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
         </div>
       ) : (
         <section style={card}>
@@ -520,7 +1007,100 @@ export default function PageEditorPage() {
         </div>
       ) : null}
 
+      {previewAsset ? (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.78)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            zIndex: 130,
+          }}
+          onClick={() => setPreviewAsset(null)}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: 960,
+              maxHeight: '100%',
+              display: 'grid',
+              gap: 12,
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                padding: '10px 12px',
+                borderRadius: 14,
+                background: 'rgba(12, 18, 28, 0.72)',
+                color: '#fff',
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, wordBreak: 'break-all' }}>
+                  {previewAsset.name}
+                </div>
+                <div style={{ marginTop: 4, fontSize: 12, color: 'rgba(255,255,255,0.72)', textAlign: 'center' }}>
+                  {isEnglish ? 'Tap outside to close' : '点空白处关闭'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyAssetName(previewAsset.name)}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,0.18)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {isEnglish ? 'Copy Name' : '复制标题'}
+              </button>
+            </div>
+
+            <div
+              style={{
+                borderRadius: 18,
+                overflow: 'hidden',
+                border: '1px solid rgba(255,255,255,0.12)',
+                background: 'rgba(12, 18, 28, 0.72)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 280,
+                maxHeight: 'calc(100vh - 160px)',
+              }}
+            >
+              <img
+                src={previewAsset.previewUrl}
+                alt={previewAsset.name}
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: 'calc(100vh - 180px)',
+                  width: 'auto',
+                  height: 'auto',
+                  display: 'block',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <SiteFooter />
     </main>
   )
 }
+

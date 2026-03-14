@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderIndexMd, stringToBase64 } from '@/lib/markdown'
 import { publishPostToGithub } from '@/lib/github'
+import {
+  DEFAULT_FRONTMATTER_PREFERENCES,
+  normalizeFrontmatterPreferences,
+} from '@/lib/frontmatter-preferences'
 import type { PostDraft } from '@/lib/types'
 
 function validateDraft(draft: PostDraft): string | null {
+  const preferences = normalizeFrontmatterPreferences(
+    draft.frontmatterPreferences || DEFAULT_FRONTMATTER_PREFERENCES,
+  )
   if (!draft.folderName?.trim()) return 'Missing folderName.'
   if (!draft.frontmatter.title?.trim()) return 'Title is required.'
-  if (!draft.frontmatter.slug?.trim()) return 'Slug is required.'
+  if (preferences.slugFieldEnabled && !draft.frontmatter.slug?.trim()) return 'Slug is required.'
   if (!draft.frontmatter.date?.trim()) return 'Date is required.'
   return null
 }
@@ -23,7 +30,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const indexMd = renderIndexMd(draft.frontmatter, draft.body)
+    const indexMd = renderIndexMd(draft.frontmatter, draft.body, draft.frontmatterPreferences)
     const indexMdBase64 = stringToBase64(indexMd)
     const changedAssets = draft.assets.filter(
       (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,

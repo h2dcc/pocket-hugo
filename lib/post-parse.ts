@@ -15,15 +15,40 @@ function normalizeStringArray(value: unknown): string[] {
 export function parseIndexMdToDraft(folderName: string, content: string): PostDraft {
   const parsed = matter(content)
   const data = parsed.data || {}
-  const knownFields = new Set([
+  const slugKeys = ['slug'] as const
+  const categoriesKeys = ['categories', 'category'] as const
+  const tagsKeys = ['tags', 'tag'] as const
+  const imageKeys = [
+    'image',
+    'featured-image',
+    'featured_image',
+    'cover',
+    'cover-image',
+    'cover_image',
+  ] as const
+  const draftKeys = ['draft'] as const
+  const allKnownKeys = [
     'description',
     'title',
-    'slug',
     'date',
-    'categories',
-    'tags',
-    'image',
+    ...slugKeys,
+    ...categoriesKeys,
+    ...tagsKeys,
+    ...imageKeys,
+    ...draftKeys,
+  ]
+  const knownFields = new Set([
+    ...allKnownKeys,
   ])
+
+  function pickField<T = unknown>(keys: readonly string[]): T | undefined {
+    for (const key of keys) {
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        return data[key] as T
+      }
+    }
+    return undefined
+  }
 
   const customFields: CustomFrontmatterField[] = Object.entries(data)
     .filter(([key]) => !knownFields.has(key))
@@ -39,11 +64,15 @@ export function parseIndexMdToDraft(folderName: string, content: string): PostDr
   const frontmatter: Frontmatter = normalizeFrontmatter({
     description: typeof data.description === 'string' ? data.description : '',
     title: typeof data.title === 'string' ? data.title : '',
-    slug: typeof data.slug === 'string' ? data.slug : '',
+    draft:
+      typeof pickField(draftKeys) === 'boolean'
+        ? Boolean(pickField(draftKeys))
+        : String(pickField(draftKeys) || '').toLowerCase() === 'true',
+    slug: typeof pickField(slugKeys) === 'string' ? String(pickField(slugKeys)) : '',
     date: typeof data.date === 'string' ? data.date : '',
-    categories: normalizeStringArray(data.categories),
-    tags: normalizeStringArray(data.tags),
-    image: typeof data.image === 'string' ? data.image : '',
+    categories: normalizeStringArray(pickField(categoriesKeys)),
+    tags: normalizeStringArray(pickField(tagsKeys)),
+    image: typeof pickField(imageKeys) === 'string' ? String(pickField(imageKeys)) : '',
     customFields,
   })
 

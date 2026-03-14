@@ -159,6 +159,8 @@ export default function HomePage() {
   const { isEnglish } = useLanguage()
   const router = useRouter()
   const pageConfigCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const repoConfigCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const settingsCollapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [drafts, setDrafts] = useState<PostDraft[]>([])
   const [authLoading, setAuthLoading] = useState(true)
   const [reposLoading, setReposLoading] = useState(false)
@@ -191,6 +193,12 @@ export default function HomePage() {
   const [pageFilesError, setPageFilesError] = useState('')
   const [pageFileName, setPageFileName] = useState('')
   const [pageMode, setPageMode] = useState<'page' | 'live'>('live')
+  const [creatingPage, setCreatingPage] = useState(false)
+  const [createPageOpen, setCreatePageOpen] = useState(false)
+  const [newPageDirectory, setNewPageDirectory] = useState('')
+  const [newPageFileName, setNewPageFileName] = useState('')
+  const [newPageError, setNewPageError] = useState('')
+  const [newPageStatus, setNewPageStatus] = useState('')
 
   const hasRepoConfig = Boolean(session.repoConfig)
   const hasPageConfig = Boolean(session.pageConfig?.filePath)
@@ -311,6 +319,12 @@ export default function HomePage() {
     return () => {
       if (pageConfigCollapseTimerRef.current) {
         clearTimeout(pageConfigCollapseTimerRef.current)
+      }
+      if (repoConfigCollapseTimerRef.current) {
+        clearTimeout(repoConfigCollapseTimerRef.current)
+      }
+      if (settingsCollapseTimerRef.current) {
+        clearTimeout(settingsCollapseTimerRef.current)
       }
     }
   }, [])
@@ -558,7 +572,13 @@ export default function HomePage() {
 
       setSession((prev) => ({ ...prev, repoConfig: result.repoConfig }))
       setConfigStatus(isEnglish ? 'Repository settings saved.' : '仓库配置已保存。')
-      setVisiblePanel(null)
+      if (repoConfigCollapseTimerRef.current) {
+        clearTimeout(repoConfigCollapseTimerRef.current)
+      }
+      repoConfigCollapseTimerRef.current = setTimeout(() => {
+        setVisiblePanel((current) => (current === 'repo' ? null : current))
+        repoConfigCollapseTimerRef.current = null
+      }, 5000)
     } catch (error) {
       setConfigError(error instanceof Error ? error.message : isEnglish ? 'Failed to save repository settings' : '保存配置失败')
       setVisiblePanel('repo')
@@ -596,6 +616,60 @@ export default function HomePage() {
     setPageFileName('')
     setPageConfigError('')
     setPageConfigStatus('')
+  }
+
+  async function handleCreatePageFile() {
+    if (!hasRepoConfig) {
+      setNewPageError(isEnglish ? 'Please save repository settings first.' : '请先保存仓库配置。')
+      setVisiblePanel('repo')
+      return
+    }
+
+    if (!newPageFileName.trim()) {
+      setNewPageError(isEnglish ? 'Please enter a Markdown file name.' : '请填写 Markdown 文件名。')
+      return
+    }
+
+    setCreatingPage(true)
+    setNewPageError('')
+    setNewPageStatus('')
+
+    try {
+      const response = await fetch('/api/github/create-page-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          directoryPath: newPageDirectory.trim(),
+          fileName: newPageFileName.trim(),
+          mode: pageMode,
+        }),
+      })
+      const result = await response.json()
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || (isEnglish ? 'Failed to create page file.' : '新增页面失败。'))
+      }
+
+      const nextFilePath = String(result.filePath || '')
+      const segments = nextFilePath.split('/')
+      const nextFileName = segments.pop() || ''
+      const nextDir = segments.join('/')
+
+      setPageDirectoryPath(nextDir)
+      setPageFileName(nextFileName)
+      setNewPageDirectory('')
+      setNewPageFileName('')
+      setSession((prev) => ({ ...prev, pageConfig: result.pageConfig || prev.pageConfig }))
+      setNewPageStatus(
+        isEnglish ? `Created: ${nextFilePath}` : `已创建：${nextFilePath}`,
+      )
+    } catch (error) {
+      setNewPageError(
+        error instanceof Error ? error.message : isEnglish ? 'Failed to create page file.' : '新增页面失败。',
+      )
+    } finally {
+      setCreatingPage(false)
+    }
   }
 
   function handleSelectCurrentDirectory() {
@@ -1192,7 +1266,17 @@ export default function HomePage() {
       ) : null}
 
       {visiblePanel === 'settings' && session.authenticated ? (
-        <SiteSettingsPanel onSaved={() => setVisiblePanel(null)} />
+        <SiteSettingsPanel
+          onSaved={() => {
+            if (settingsCollapseTimerRef.current) {
+              clearTimeout(settingsCollapseTimerRef.current)
+            }
+            settingsCollapseTimerRef.current = setTimeout(() => {
+              setVisiblePanel((current) => (current === 'settings' ? null : current))
+              settingsCollapseTimerRef.current = null
+            }, 5000)
+          }}
+        />
       ) : null}
 
       {visiblePanel === 'page' && session.authenticated ? (
@@ -1440,6 +1524,92 @@ export default function HomePage() {
               {pageFilePath || (isEnglish ? 'Not selected' : '未选择')}
             </div>
           </div>
+
+          <section
+            style={{
+              border: '1px solid var(--border)',
+              borderRadius: 16,
+              background: 'var(--card-muted)',
+              padding: 14,
+              display: 'grid',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ display: 'grid', gap: 4 }}>
+                <span style={{ fontSize: 15, fontWeight: 700 }}>
+                  {isEnglish ? 'Create New Page' : '新增页面'}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  {isEnglish
+                    ? 'Create a new Markdown page file directly in your repository.'
+                    : '在仓库中直接创建新的 Markdown 页面文件。'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreatePageOpen((prev) => !prev)}
+                style={pillButtonStyle}
+              >
+                {createPageOpen ? (isEnglish ? 'Collapse' : '收起') : (isEnglish ? 'Expand' : '展开')}
+              </button>
+            </div>
+
+            {createPageOpen ? (
+              <>
+                <span style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  {isEnglish
+                    ? 'Tip: after selecting a base directory (for example `page`), you can append nested paths like `page/2026/moments`, then set file name `my-moments.md` to create it directly.'
+                    : '提示：可先选基础目录（如 `page`），再在“目录路径”里追加子路径，例如 `page/2026/moments`，再填写文件名 `my-moments.md`，即可直接创建。'}
+                </span>
+
+                <label style={{ display: 'grid', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{isEnglish ? 'Directory Path' : '目录路径'}</span>
+                  <input
+                    type="text"
+                    value={newPageDirectory}
+                    onChange={(e) => setNewPageDirectory(e.target.value)}
+                    placeholder={isEnglish ? 'example: page/2026' : '例如：page/2026'}
+                    style={inputStyle}
+                  />
+                </label>
+
+                <label style={{ display: 'grid', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{isEnglish ? 'File Name' : '文件名'}</span>
+                  <input
+                    type="text"
+                    value={newPageFileName}
+                    onChange={(e) => setNewPageFileName(e.target.value)}
+                    placeholder={isEnglish ? 'example: moments.md' : '例如：moments.md'}
+                    style={inputStyle}
+                  />
+                </label>
+
+                {newPageError ? <div style={{ color: 'var(--danger)' }}>{newPageError}</div> : null}
+                {newPageStatus ? <div style={{ color: 'var(--accent-soft-text)' }}>{newPageStatus}</div> : null}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleCreatePageFile()
+                  }}
+                  disabled={creatingPage}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 12,
+                    border: '1px solid var(--accent)',
+                    background: 'var(--accent)',
+                    color: 'var(--accent-contrast)',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    opacity: creatingPage ? 0.7 : 1,
+                  }}
+                >
+                  {creatingPage ? (isEnglish ? 'Creating...' : '创建中...') : isEnglish ? 'Create Page File' : '创建页面文件'}
+                </button>
+              </>
+            ) : null}
+          </section>
 
           {pageConfigError ? <div style={{ color: 'var(--danger)' }}>{pageConfigError}</div> : null}
           {pageConfigStatus ? <div style={{ color: '#1677ff' }}>{pageConfigStatus}</div> : null}
