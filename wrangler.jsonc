@@ -1,4 +1,4 @@
-{
+﻿{
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pocket-hugo",
   "main": ".open-next/worker.js",
@@ -10,5 +10,6 @@
   },
   "observability": {
     "enabled": true
-  }
+  },
+  "keep_vars": true
 }
