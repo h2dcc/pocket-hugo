@@ -51,10 +51,10 @@ export function SiteHeader() {
           letterSpacing: 0.3,
         }}
       >
-        {isEnglish ? 'Mobile-first Hugo workflow' : '可能是最好的 Hugo 编辑器'}
+        {isEnglish ? 'Browser-first Hugo workflow' : '浏览器优先的 Hugo 工作流'}
       </div>
       <Link
-        href="/"
+        href="/app"
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -83,8 +83,8 @@ export function SiteHeader() {
         }}
       >
         {isEnglish
-          ? 'Write, manage, and publish Hugo posts from your phone or browser.'
-          : '在手机或浏览器上写作、管理并发布 Hugo 文章。'}
+          ? 'Write, manage, and publish Hugo posts in a browser, with a stronger desktop experience.'
+          : '在浏览器中写作、管理并发布 Hugo 文章，桌面端体验更出色。'}
       </p>
     </section>
   )

@@ -7,19 +7,21 @@
 ![Pocket-Hugo-Desktop](pockethugodesktop.webp)
 
 
-PocketHugo is a mobile-first Hugo publishing app for GitHub-hosted content.
+PocketHugo is a browser-first Hugo publishing app for GitHub-hosted content, with solid support across desktop, tablet, and phone.
 
 - GitHub repo: [https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
+- Production (Main Domain Landing): [https://leftn.com](https://leftn.com)
+- Production (App Entry): [https://leftn.com/app](https://leftn.com/app)
 - Production (Vercel): [https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
 - Production (Cloudflare Workers): [https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
 
 ## Why PocketHugo
 
-PocketHugo keeps Hugo's native page bundle workflow and removes most of the Git friction on phones:
+PocketHugo keeps Hugo's native page bundle workflow and removes most of the Git friction in browser-based publishing:
 
-- write/edit from mobile browser
+- write/edit in desktop, tablet, or mobile browser
 - keep `index.md + images` in one folder
-- compress and manage images during upload
+- compress, convert, and auto-name images during upload to reduce repo storage and build overhead
 - publish back to GitHub in one batch commit
 - no app-side user database for your article content
 
@@ -41,7 +43,7 @@ This was not a one-week prototype. It came from a long sequence of Hugo workflow
 - 2025-10-27: publishing Hugo via GitHub Issue / GitHub App ideas
 
 
-After repeatedly trying and documenting these paths, PocketHugo is the first version that fully closes the loop for mobile-first Hugo writing and publishing.
+After repeatedly trying and documenting these paths, PocketHugo became a practical browser-based workflow for Hugo writing and publishing.
 
 ## Main Features
 
@@ -78,6 +80,7 @@ After repeatedly trying and documenting these paths, PocketHugo is the first ver
 - two modes:
   - Standalone Page: edit one page directly
   - Quick Timeline: add/edit multiple timestamped entries
+- use Quick Timeline for fast status-style updates
 - image upload/insert/delete support in page editor
 - frontmatter editing area
 - transfer timeline page to a new post draft in one step
@@ -154,6 +157,10 @@ Required in all environments:
 - `GITHUB_CLIENT_ID`
 - `GITHUB_CLIENT_SECRET`
 
+Optional:
+
+- `LANDING_PAGE_HOSTS`
+
 Generate `APP_SESSION_SECRET` example:
 
 ```bash
@@ -172,11 +179,19 @@ GITHUB_CLIENT_SECRET=your-vercel-oauth-client-secret
 ### Cloudflare Workers example
 
 ```env
-APP_URL=https://pocket-hugo.rpwi.workers.dev
+APP_URL=https://leftn.com
 APP_SESSION_SECRET=replace-with-a-long-random-secret
 GITHUB_CLIENT_ID=your-workers-oauth-client-id
 GITHUB_CLIENT_SECRET=your-workers-oauth-client-secret
+LANDING_PAGE_HOSTS=leftn.com,www.leftn.com
 ```
+
+### Landing page behavior
+
+- When the request host matches `LANDING_PAGE_HOSTS`, `/` shows the marketing landing page.
+- `/app` always opens the application directly.
+- If `LANDING_PAGE_HOSTS` does not match the current host, `/` opens the application directly.
+- This keeps self-hosted deployments app-first by default, while still allowing a custom main-domain landing page.
 
 ## Deploy to Vercel
 
