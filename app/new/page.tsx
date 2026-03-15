@@ -66,7 +66,7 @@ export default function NewPostPage() {
     return useDatePrefix ? buildFolderName(datePrefix, normalizedSlug) : normalizedSlug
   }, [datePrefix, normalizedSlug, useDatePrefix])
 
-  function handleCreate() {
+  async function handleCreate() {
     if (useDatePrefix && !datePrefix) {
       setError(isEnglish ? 'Please enter a date prefix.' : '请填写日期前缀')
       return
@@ -92,7 +92,7 @@ export default function NewPostPage() {
       getCurrentDateTime(timezoneOffsetHours),
       settings.frontmatterPreferences,
     )
-    const saveResult = saveDraftToStorage(draft)
+    const saveResult = await saveDraftToStorage(draft)
     if (!saveResult.ok) {
       setError(
         saveResult.code === 'quota'
@@ -277,3 +277,4 @@ export default function NewPostPage() {
     </main>
   )
 }
+

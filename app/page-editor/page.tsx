@@ -253,7 +253,7 @@ export default function PageEditorPage() {
             assets: (result.draft as PageDraft).assets || [],
             remoteAssetNames: (result.draft as PageDraft).remoteAssetNames || [],
           }
-          const localDraft = loadPageDraftFromStorage(config.pageConfig.filePath)
+          const localDraft = await loadPageDraftFromStorage(config.pageConfig.filePath)
           setDraft(mergeDrafts(remoteDraft, localDraft))
           if (config.pageConfig.mode === 'live') {
             setNewEntryContent('## ')
@@ -293,20 +293,33 @@ export default function PageEditorPage() {
 
   useEffect(() => {
     if (!draft) return
-    const saveResult = savePageDraftToStorage(draft)
-    setStatus(
-      saveResult.ok
-        ? isEnglish
-          ? 'Saved locally'
-          : '已保存到本地'
-        : saveResult.code === 'quota'
+
+    let cancelled = false
+    const currentDraft = draft
+
+    async function persistDraft() {
+      const saveResult = await savePageDraftToStorage(currentDraft)
+      if (cancelled) return
+
+      setStatus(
+        saveResult.ok
           ? isEnglish
-            ? 'Local storage is full. This page draft is no longer being fully saved on this device.'
-            : '本地存储空间已满，当前设备已无法完整保存这个页面草稿。'
-          : isEnglish
-            ? 'Local save failed on this device.'
-            : '当前设备本地保存失败。',
-    )
+            ? 'Saved locally'
+            : '已保存到本地'
+          : saveResult.code === 'quota'
+            ? isEnglish
+              ? 'Local storage is full. This page draft is no longer being fully saved on this device.'
+              : '本地存储空间已满，当前设备已无法完整保存这个页面草稿。'
+            : isEnglish
+              ? 'Local save failed on this device.'
+              : '当前设备本地保存失败。',
+      )
+    }
+
+    void persistDraft()
+    return () => {
+      cancelled = true
+    }
   }, [draft, isEnglish])
 
   useEffect(() => {
@@ -505,6 +518,21 @@ export default function PageEditorPage() {
     }))
   }
 
+  async function handleManualSave() {
+    if (!draft) return
+    const saveResult = await savePageDraftToStorage(draft)
+    setStatus(
+      saveResult.ok
+        ? `${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`
+        : saveResult.code === 'quota'
+          ? isEnglish
+            ? 'Local storage is full. Manual save could not be completed.'
+            : '本地存储空间已满，手动保存未能完成。'
+          : isEnglish
+            ? 'Manual save failed on this device.'
+            : '当前设备手动保存失败。',
+    )
+  }
   async function transferCurrentPageToPost() {
     if (!draft) return
     if (draft.mode !== 'live') return
@@ -547,7 +575,7 @@ export default function PageEditorPage() {
       if (postDraft.assets[0]?.name) {
         postDraft.frontmatter.image = postDraft.assets[0].name
       }
-      const saveResult = saveDraftToStorage(postDraft)
+      const saveResult = await saveDraftToStorage(postDraft)
       if (!saveResult.ok) {
         throw new Error(
           saveResult.code === 'quota'
@@ -602,7 +630,7 @@ export default function PageEditorPage() {
         throw new Error(result.error || (isEnglish ? 'Failed to publish page.' : '页面发布失败。'))
       }
 
-      removePageDraftFromStorage(draft.filePath)
+      await removePageDraftFromStorage(draft.filePath)
       router.push(
         `/page-publish?path=${encodeURIComponent(result.path)}&files=${result.fileCount}&commitCount=${result.commitCount}&repo=${encodeURIComponent(result.repo || '')}&branch=${encodeURIComponent(result.branch || '')}&changes=${encodeURIComponent(JSON.stringify(result.fileChanges || []))}`,
       )
@@ -725,7 +753,7 @@ export default function PageEditorPage() {
         <button type="button" onClick={() => setActiveTab(activeTab === 'edit' ? 'preview' : 'edit')} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: activeTab === 'edit' ? 'var(--card)' : 'var(--accent)', color: activeTab === 'edit' ? 'var(--foreground)' : 'var(--accent-contrast)', fontWeight: 700, fontSize: 14 }}>
           {activeTab === 'edit' ? (isEnglish ? 'Preview' : '预览') : (isEnglish ? 'Edit' : '编辑')}
         </button>
-        <button type="button" onClick={() => { savePageDraftToStorage(draft); setStatus(`${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`) }} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontWeight: 700, fontSize: 14 }}>
+        <button type="button" onClick={() => { void handleManualSave() }} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', fontWeight: 700, fontSize: 14 }}>
           {isEnglish ? 'Save' : '保存'}
         </button>
         <button type="button" onClick={() => setShowConfirm(true)} disabled={publishing} style={{ padding: '10px 12px', borderRadius: 12, border: '1px solid var(--accent)', background: 'var(--accent)', color: 'var(--accent-contrast)', fontWeight: 700, fontSize: 14 }}>
@@ -1129,5 +1157,12 @@ export default function PageEditorPage() {
     </main>
   )
 }
+
+
+
+
+
+
+
 
 

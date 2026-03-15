@@ -1,6 +1,11 @@
-﻿import { restoreAssetPreviewUrls } from '@/lib/image'
+﻿import {
+  loadStoredAssetsForDraftKey,
+  removeStoredAssetsForDraftKey,
+  syncStoredAssetsForDraftKey,
+} from '@/lib/asset-db'
+import { restoreAssetPreviewUrls } from '@/lib/image'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
-import type { PostDraft } from '@/lib/types'
+import type { DraftAsset, PostDraft } from '@/lib/types'
 
 const DRAFT_PREFIX = 'draft:'
 
@@ -19,6 +24,7 @@ function prepareDraftForStorage(draft: PostDraft): PostDraft {
       ...asset,
       // Only drop duplicated data URLs for locally uploaded images.
       // Remote GitHub assets rely on previewUrl because they do not have base64 content.
+      contentBase64: asset.contentBase64 ? '' : asset.contentBase64,
       previewUrl: asset.contentBase64 ? '' : asset.previewUrl,
     })),
   }
@@ -31,10 +37,35 @@ function isQuotaExceededError(error: unknown) {
   )
 }
 
-export function saveDraftToStorage(draft: PostDraft): DraftStorageSaveResult {
+function mergeStoredAssets(
+  assets: DraftAsset[],
+  storedAssetMap: Map<string, { mimeType: string; contentBase64: string }>,
+) {
+  return assets.map((asset) => {
+    if (asset.contentBase64.trim()) {
+      return asset
+    }
+
+    const stored = storedAssetMap.get(asset.name)
+    if (!stored?.contentBase64.trim()) {
+      return asset
+    }
+
+    return {
+      ...asset,
+      mimeType: stored.mimeType || asset.mimeType,
+      contentBase64: stored.contentBase64,
+    }
+  })
+}
+
+export async function saveDraftToStorage(draft: PostDraft): Promise<DraftStorageSaveResult> {
+  const draftKey = getDraftStorageKey(draft.folderName)
+
   try {
+    await syncStoredAssetsForDraftKey(draftKey, draft.assets)
     localStorage.setItem(
-      getDraftStorageKey(draft.folderName),
+      draftKey,
       JSON.stringify(prepareDraftForStorage(draft)),
     )
     return { ok: true }
@@ -43,24 +74,30 @@ export function saveDraftToStorage(draft: PostDraft): DraftStorageSaveResult {
   }
 }
 
-export function loadDraftFromStorage(folderName: string): PostDraft | null {
-  const raw = localStorage.getItem(getDraftStorageKey(folderName))
+export async function loadDraftFromStorage(folderName: string): Promise<PostDraft | null> {
+  const draftKey = getDraftStorageKey(folderName)
+  const raw = localStorage.getItem(draftKey)
   if (!raw) return null
 
   try {
     const parsed = JSON.parse(raw) as PostDraft
+    const storedAssetMap = await loadStoredAssetsForDraftKey(draftKey)
     return {
       ...parsed,
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
-      assets: restoreAssetPreviewUrls(parsed.assets || []),
+      assets: restoreAssetPreviewUrls(
+        mergeStoredAssets(parsed.assets || [], storedAssetMap),
+      ),
     }
   } catch {
     return null
   }
 }
 
-export function removeDraftFromStorage(folderName: string) {
-  localStorage.removeItem(getDraftStorageKey(folderName))
+export async function removeDraftFromStorage(folderName: string) {
+  const draftKey = getDraftStorageKey(folderName)
+  localStorage.removeItem(draftKey)
+  await removeStoredAssetsForDraftKey(draftKey)
 }
 
 export function listDraftsFromStorage(): PostDraft[] {
@@ -85,7 +122,6 @@ export function listDraftsFromStorage(): PostDraft[] {
     .map((draft) => ({
       ...draft,
       frontmatter: normalizeFrontmatter(draft.frontmatter),
-      assets: restoreAssetPreviewUrls(draft.assets || []),
     }))
     .sort((a, b) => {
       const aDate = new Date(a.frontmatter.date || 0).getTime()

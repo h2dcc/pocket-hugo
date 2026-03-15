@@ -254,39 +254,61 @@ export default function EditorPage() {
 
     if (!folderName) return
 
-    const parsed = loadDraftFromStorage(folderName)
-    if (!parsed) return
+    let cancelled = false
 
-    const restoredDraft: PostDraft = {
-      ...parsed,
-      frontmatter: normalizeFrontmatter(parsed.frontmatter),
-      assets: restoreAssetPreviewUrls(parsed.assets || []),
+    async function loadDraft() {
+      const parsed = await loadDraftFromStorage(folderName)
+      if (!parsed || cancelled) return
+
+      const restoredDraft: PostDraft = {
+        ...parsed,
+        frontmatter: normalizeFrontmatter(parsed.frontmatter),
+        assets: restoreAssetPreviewUrls(parsed.assets || []),
+      }
+
+      setDraft(
+        applyFrontmatterPreferencesToDraft(
+          restoredDraft,
+          loadedSettings.frontmatterPreferences,
+        ),
+      )
     }
 
-    setDraft(
-      applyFrontmatterPreferencesToDraft(
-        restoredDraft,
-        loadedSettings.frontmatterPreferences,
-      ),
-    )
+    void loadDraft()
+    return () => {
+      cancelled = true
+    }
   }, [folderName])
 
   useEffect(() => {
     if (!draft) return
-    const saveResult = saveDraftToStorage(draft)
-    setStatus(
-      saveResult.ok
-        ? isEnglish
-          ? 'Saved locally'
-          : '已保存到本地'
-        : saveResult.code === 'quota'
+
+    let cancelled = false
+    const currentDraft = draft
+
+    async function persistDraft() {
+      const saveResult = await saveDraftToStorage(currentDraft)
+      if (cancelled) return
+
+      setStatus(
+        saveResult.ok
           ? isEnglish
-            ? 'Local storage is full. This draft is no longer being fully saved on this device.'
-            : '本地存储空间已满，当前设备已无法完整保存这篇草稿。'
-          : isEnglish
-            ? 'Local save failed on this device.'
-            : '当前设备本地保存失败。',
-    )
+            ? 'Saved locally'
+            : '已保存到本地'
+          : saveResult.code === 'quota'
+            ? isEnglish
+              ? 'Local storage is full. This draft is no longer being fully saved on this device.'
+              : '本地存储空间已满，当前设备已无法完整保存这篇草稿。'
+            : isEnglish
+              ? 'Local save failed on this device.'
+              : '当前设备本地保存失败。',
+      )
+    }
+
+    void persistDraft()
+    return () => {
+      cancelled = true
+    }
   }, [draft, folderName, isEnglish])
 
   useEffect(() => {
@@ -694,12 +716,21 @@ export default function EditorPage() {
     setPublishConfirmOpen(true)
   }
 
-  function handleManualSave() {
+  async function handleManualSave() {
     if (!draft) return
-    saveDraftToStorage(draft)
-    setStatus(`${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`)
+    const saveResult = await saveDraftToStorage(draft)
+    setStatus(
+      saveResult.ok
+        ? `${isEnglish ? 'Saved manually' : '已手动保存'} ${new Date().toLocaleTimeString()}`
+        : saveResult.code === 'quota'
+          ? isEnglish
+            ? 'Local storage is full. Manual save could not be completed.'
+            : '本地存储空间已满，手动保存未能完成。'
+          : isEnglish
+            ? 'Manual save failed on this device.'
+            : '当前设备手动保存失败。',
+    )
   }
-
   async function handleConfirmPublish() {
     if (!draft) return
 
@@ -721,7 +752,7 @@ export default function EditorPage() {
         throw new Error(result.error || '发布失败')
       }
 
-      removeDraftFromStorage(draft.folderName)
+      await removeDraftFromStorage(draft.folderName)
       setPublishConfirmOpen(false)
       router.push(
         `/publish/${draft.folderName}?path=${encodeURIComponent(result.path)}&files=${result.fileCount}&commitCount=${result.commitCount}&repo=${encodeURIComponent(result.repo || '')}&branch=${encodeURIComponent(result.branch || '')}&changes=${encodeURIComponent(JSON.stringify(result.fileChanges || []))}`,
@@ -1936,5 +1967,11 @@ export default function EditorPage() {
     </main>
   )
 }
+
+
+
+
+
+
 
 

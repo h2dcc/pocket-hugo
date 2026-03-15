@@ -88,7 +88,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         throw new Error(result.error || (isEnglish ? 'Failed to load post' : '读取文章失败'))
       }
 
-      const saveResult = saveDraftToStorage(result.draft)
+      const saveResult = await saveDraftToStorage(result.draft)
       if (!saveResult.ok) {
         throw new Error(
           saveResult.code === 'quota'
@@ -206,3 +206,4 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
     </div>
   )
 }
+

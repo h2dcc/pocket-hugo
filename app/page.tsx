@@ -233,6 +233,10 @@ export default function HomePage() {
   const matchedRepo = repos.find((repo) => repo.fullName === selectedRepoFullName)
   const pathSegments = directoryPath ? directoryPath.split('/') : []
   const pagePathSegments = pageDirectoryPath ? pageDirectoryPath.split('/') : []
+  const savedPageFilePath = session.pageConfig?.filePath || ''
+  const savedPageFileSegments = savedPageFilePath ? savedPageFilePath.split('/') : []
+  const savedPageFileName = savedPageFileSegments.length ? savedPageFileSegments[savedPageFileSegments.length - 1] : ''
+  const savedPageDirectoryPath = savedPageFileSegments.length > 1 ? savedPageFileSegments.slice(0, -1).join('/') : ''
   const pageFilePath = pageDirectoryPath ? `${pageDirectoryPath}/${pageFileName}` : pageFileName
   const pageFileOptions = useMemo(
     () => pageFiles.map((file) => file.name),
@@ -527,14 +531,23 @@ export default function HomePage() {
   }, [session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
 
   useEffect(() => {
-    if (!pageFileOptions.length) {
-      setPageFileName('')
+    if (!pageFileOptions.length) return
+
+    if (pageFileOptions.includes(pageFileName)) return
+
+    if (
+      savedPageDirectoryPath === pageDirectoryPath
+      && savedPageFileName
+      && pageFileOptions.includes(savedPageFileName)
+    ) {
+      setPageFileName(savedPageFileName)
       return
     }
 
-    if (pageFileOptions.includes(pageFileName)) return
-    setPageFileName(pageFileOptions[0])
-  }, [pageFileName, pageFileOptions])
+    if (!pageFileName) {
+      setPageFileName(pageFileOptions[0])
+    }
+  }, [pageDirectoryPath, pageFileName, pageFileOptions, savedPageDirectoryPath, savedPageFileName])
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -715,9 +728,9 @@ export default function HomePage() {
     setPendingDeleteFolderName(folderName)
   }
 
-  function handleConfirmDelete() {
+  async function handleConfirmDelete() {
     if (!pendingDeleteFolderName) return
-    removeDraftFromStorage(pendingDeleteFolderName)
+    await removeDraftFromStorage(pendingDeleteFolderName)
     setPendingDeleteFolderName('')
     refreshDrafts()
   }
@@ -1075,6 +1088,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+
               <div
                 style={{
                   padding: 12,
@@ -1089,13 +1103,6 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
-
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-              <IconButton label={isEnglish ? 'Go to root directory' : '回到根目录'} icon={<RootIcon />} onClick={() => handleGoToPath('')} disabled={directoriesLoading} />
-              <IconButton label={isEnglish ? 'Go up one level' : '返回上级'} icon={<UpIcon />} onClick={() => handleGoToPath(pathSegments.slice(0, -1).join('/'))} disabled={directoriesLoading || !directoryPath} />
-              <IconButton label={isEnglish ? 'Use current directory' : '选择当前目录'} icon={<CheckIcon />} onClick={handleSelectCurrentDirectory} disabled={directoriesLoading || !directoryPath} active={Boolean(directoryPath && postsBasePath === directoryPath)} style={{ color: 'color-mix(in srgb, var(--foreground) 78%, var(--accent) 22%)', border: '1px solid var(--accent)', background: directoryPath ? 'color-mix(in srgb, var(--accent-soft) 78%, var(--card) 22%)' : 'var(--card)' }} />
-            </div>
-
             {pathSegments.length ? (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <button
@@ -1187,6 +1194,8 @@ export default function HomePage() {
               ) : null}
             </div>
           </section>
+
+
 
           {configError ? <div style={{ color: 'var(--danger)' }}>{configError}</div> : null}
           {configStatus ? (
@@ -1205,6 +1214,12 @@ export default function HomePage() {
               {configStatus}
             </div>
           ) : null}
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <IconButton label={isEnglish ? 'Go to root directory' : '回到根目录'} icon={<RootIcon />} onClick={() => handleGoToPath('')} disabled={directoriesLoading} />
+            <IconButton label={isEnglish ? 'Go up one level' : '返回上级'} icon={<UpIcon />} onClick={() => handleGoToPath(pathSegments.slice(0, -1).join('/'))} disabled={directoriesLoading || !directoryPath} />
+            <IconButton label={isEnglish ? 'Use current directory' : '选择当前目录'} icon={<CheckIcon />} onClick={handleSelectCurrentDirectory} disabled={directoriesLoading || !directoryPath} active={Boolean(directoryPath && postsBasePath === directoryPath)} style={{ color: 'color-mix(in srgb, var(--foreground) 78%, var(--accent) 22%)', border: '1px solid var(--accent)', background: directoryPath ? 'color-mix(in srgb, var(--accent-soft) 78%, var(--card) 22%)' : 'var(--card)' }} />
+          </div>
 
           <button
             type="button"
@@ -1384,6 +1399,38 @@ export default function HomePage() {
               </span>
             </div>
 
+            <div
+              style={{
+                padding: 12,
+                borderRadius: 14,
+                border: '1px solid var(--border)',
+                background: 'var(--card)',
+                display: 'grid',
+                gap: 8,
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>
+                {isEnglish ? 'Previously saved file' : '之前保存的文件'}
+              </div>
+              <div
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: savedPageFilePath ? 'var(--foreground)' : 'var(--muted)',
+                  wordBreak: 'break-all',
+                }}
+              >
+                {savedPageFilePath || (isEnglish ? 'Not saved yet' : '尚未保存')}
+              </div>
+              {savedPageFilePath && savedPageFilePath !== pageFilePath ? (
+                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                  {isEnglish
+                    ? 'The list below shows files in the current directory. Save again if you want to switch away from the previously saved file.'
+                    : '下面列表显示的是当前目录中的文件；如果你想切换到其他文件，需要重新保存。'}
+                </div>
+              ) : null}
+            </div>
+
             {pageFilesLoading ? (
               <div style={{ color: 'var(--muted)', fontSize: 14 }}>{isEnglish ? 'Loading files...' : '正在加载文件...'}</div>
             ) : null}
@@ -1415,7 +1462,12 @@ export default function HomePage() {
                     wordBreak: 'break-all',
                   }}
                 >
-                  {fileName}
+                  <span>{fileName}</span>
+                  {savedPageDirectoryPath === pageDirectoryPath && savedPageFileName === fileName ? (
+                    <span style={{ display: 'inline-flex', marginTop: 6, fontSize: 11, fontWeight: 700, opacity: 0.9 }}>
+                      {isEnglish ? 'Saved now' : '当前已保存'}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -1780,3 +1832,12 @@ export default function HomePage() {
     </main>
   )
 }
+
+
+
+
+
+
+
+
+

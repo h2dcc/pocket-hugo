@@ -1,4 +1,4 @@
-import {
+﻿import {
   DEFAULT_FRONTMATTER_PREFERENCES,
   normalizeFrontmatterPreferences,
   type FrontmatterPreferences,
@@ -18,7 +18,7 @@ export const SITE_SETTINGS_STORAGE_KEY = 'site:settings'
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   imageConversionEnabled: true,
-  imageMaxWidth: 1280,
+  imageMaxWidth: 1080,
   imageQuality: 0.82,
   autoImageNamingEnabled: true,
   timezoneOffsetHours: 8,
@@ -95,3 +95,4 @@ export function saveSiteSettingsToStorage(settings: SiteSettings) {
     JSON.stringify(normalizeSiteSettings(settings)),
   )
 }
+
