@@ -54,7 +54,13 @@ type SlashState = {
 }
 
 function isImageMarkdown(markdown: string) {
-  return /^!\[[^\]]*]\([^)]+\)$/.test(markdown.trim())
+  const lines = markdown
+    .trim()
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  return lines.length > 0 && lines.every((line) => /^!\[[^\]]*]\([^)]+\)$/.test(line))
 }
 
 function buildStandaloneImageBlock(markdown: string) {

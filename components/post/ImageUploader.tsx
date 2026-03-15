@@ -11,6 +11,8 @@ import type { SiteSettings } from '@/lib/site-settings'
 import { useLanguage } from '@/lib/use-language'
 import type { DraftAsset } from '@/lib/types'
 
+const MAX_BATCH_UPLOAD_COUNT = 9
+
 type Props = {
   existingAssets: DraftAsset[]
   settings: SiteSettings
@@ -29,46 +31,102 @@ export default function ImageUploader({
   const inputId = useId()
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [progressText, setProgressText] = useState('')
+
+  function getNextAssetName(file: File, assets: DraftAsset[]) {
+    const autoName = settings.imageConversionEnabled
+      ? nextImageNameFromAssets(assets)
+      : ensureUniqueAssetName(sanitizeAssetName(file.name), assets)
+
+    const customName = ensureUniqueAssetName(
+      sanitizeAssetName(
+        settings.imageConversionEnabled
+          ? file.name.replace(/\.[^.]+$/i, '.webp')
+          : file.name,
+      ),
+      assets,
+    )
+
+    return settings.autoImageNamingEnabled ? autoName : customName
+  }
+
+  function resetInput() {
+    if (inputRef.current) {
+      inputRef.current.value = ''
+    }
+  }
+
+  function waitForNextTurn() {
+    return new Promise<void>((resolve) => {
+      window.setTimeout(resolve, 0)
+    })
+  }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
+    const selectedFiles = Array.from(event.target.files || []).filter((file) =>
+      file.type.startsWith('image/'),
+    )
+    if (!selectedFiles.length) return
+
+    const files = selectedFiles.slice(0, MAX_BATCH_UPLOAD_COUNT)
 
     setError('')
     setUploading(true)
+    setProgressText('')
 
     try {
-      const autoName = settings.imageConversionEnabled
-        ? nextImageNameFromAssets(existingAssets)
-        : ensureUniqueAssetName(sanitizeAssetName(file.name), existingAssets)
+      const workingAssets = [...existingAssets]
+      const markdowns: string[] = []
 
-      const customName = ensureUniqueAssetName(
-        sanitizeAssetName(
-          settings.imageConversionEnabled
-            ? file.name.replace(/\.[^.]+$/i, '.webp')
-            : file.name,
-        ),
-        existingAssets,
-      )
+      if (selectedFiles.length > MAX_BATCH_UPLOAD_COUNT) {
+        setError(
+          isEnglish
+            ? `You selected ${selectedFiles.length} images. Only the first ${MAX_BATCH_UPLOAD_COUNT} will be processed this time.`
+            : `你选择了 ${selectedFiles.length} 张图片，本次只会处理前 ${MAX_BATCH_UPLOAD_COUNT} 张。`,
+        )
+      }
 
-      const assetName = settings.autoImageNamingEnabled ? autoName : customName
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index]
 
-      const asset = await createDraftAssetFromImage(file, assetName, {
-        convertToWebp: settings.imageConversionEnabled,
-        maxWidth: settings.imageMaxWidth,
-        quality: settings.imageQuality,
-      })
+        setProgressText(
+          isEnglish
+            ? `Processing image ${index + 1} of ${files.length}...`
+            : `正在处理第 ${index + 1}/${files.length} 张图片...`,
+        )
 
-      onUploaded(asset)
-      const altText = asset.name.replace(/\.[^.]+$/i, '')
-      onInsertMarkdown(`![${altText}](${asset.name})`)
+        const assetName = getNextAssetName(file, workingAssets)
+        const asset = await createDraftAssetFromImage(file, assetName, {
+          convertToWebp: settings.imageConversionEnabled,
+          maxWidth: settings.imageMaxWidth,
+          quality: settings.imageQuality,
+        })
+
+        workingAssets.push(asset)
+        onUploaded(asset)
+
+        const altText = asset.name.replace(/\.[^.]+$/i, '')
+        markdowns.push(`![${altText}](${asset.name})`)
+
+        // Process files sequentially to keep peak memory usage lower on iPhone and other mobile browsers.
+        await waitForNextTurn()
+      }
+
+      if (markdowns.length) {
+        onInsertMarkdown(markdowns.join('\n'))
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : isEnglish ? 'Image processing failed.' : '图片处理失败')
+      setError(
+        err instanceof Error
+          ? err.message
+          : isEnglish
+            ? 'Image processing failed.'
+            : '图片处理失败。',
+      )
     } finally {
       setUploading(false)
-      if (inputRef.current) {
-        inputRef.current.value = ''
-      }
+      setProgressText('')
+      resetInput()
     }
   }
 
@@ -79,6 +137,7 @@ export default function ImageUploader({
         ref={inputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleFileChange}
         disabled={uploading}
         style={{ display: 'none' }}
@@ -100,34 +159,37 @@ export default function ImageUploader({
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)' }}>
           {uploading
             ? isEnglish
-              ? 'Processing image...'
+              ? 'Processing images...'
               : '图片处理中...'
             : isEnglish
-              ? 'Tap to Choose an Image'
-              : '点按选择图片'}
+              ? 'Tap to Choose Images'
+              : '点击选择图片'}
         </span>
         <span style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
-          {isEnglish ? 'Designed for easy mobile uploads.' : '支持手机直接点按上传。'}
+          {isEnglish
+            ? `Upload up to ${MAX_BATCH_UPLOAD_COUNT} images at a time. They will be processed one by one for better mobile stability.`
+            : `一次最多上传 ${MAX_BATCH_UPLOAD_COUNT} 张图片，并会逐张处理以提升手机端稳定性。`}
           <br />
           {settings.imageConversionEnabled
             ? isEnglish
               ? 'Images will follow your current conversion settings.'
-              : '当前会按你的偏好压缩并转换图片。'
+              : '图片会按你当前的转换设置处理。'
             : isEnglish
               ? 'Images will keep their original format when uploaded.'
-              : '当前会保留原图格式上传。'}
+              : '图片上传时会保留原始格式。'}
         </span>
       </label>
 
       {uploading ? (
         <div style={{ color: 'var(--muted)' }}>
-          {settings.imageConversionEnabled
-            ? isEnglish
-              ? 'Compressing and converting image...'
-              : '正在压缩并转换图片...'
-            : isEnglish
-              ? 'Reading original image...'
-              : '正在读取原图...'}
+          {progressText ||
+            (settings.imageConversionEnabled
+              ? isEnglish
+                ? 'Compressing and converting images...'
+                : '正在压缩并转换图片...'
+              : isEnglish
+                ? 'Reading original images...'
+                : '正在读取原始图片...')}
         </div>
       ) : null}
       {error ? <div style={{ color: 'var(--danger)' }}>{error}</div> : null}
