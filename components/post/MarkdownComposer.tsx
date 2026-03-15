@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { useLanguage } from '@/lib/use-language'
 
 type MarkdownComposerProps = {
@@ -150,7 +150,6 @@ export default function MarkdownComposer({
 }: MarkdownComposerProps) {
   const { isEnglish } = useLanguage()
   const [isMobileLike, setIsMobileLike] = useState(false)
-  const [isFocused, setIsFocused] = useState(false)
   const [internalEditorHeight, setInternalEditorHeight] = useState(minHeight)
   const pendingSelectionRef = useRef<{ start: number; end: number; scrollTop: number } | null>(null)
   const resolvedEditorHeight = editorHeight ?? internalEditorHeight
@@ -236,154 +235,140 @@ export default function MarkdownComposer({
     })
   }
 
-  const toolbarStyle = useMemo<CSSProperties>(() => {
-    const base: CSSProperties = {
-      display: 'grid',
-      gap: 8,
-      padding: '8px',
-      borderRadius: 14,
-      border: '1px solid var(--border)',
-      background: 'color-mix(in srgb, var(--card) 92%, white 8%)',
-      boxShadow: 'var(--shadow)',
-    }
+  const toolbar = (
+    <div
+      style={{
+        display: 'grid',
+        gap: 8,
+        padding: '8px',
+        borderRadius: 14,
+        border: '1px solid var(--border)',
+        background: 'color-mix(in srgb, var(--card) 92%, white 8%)',
+        boxShadow: 'var(--shadow)',
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {TOOLBAR_ACTIONS.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => insertAction(action)}
+            style={{
+              minWidth: 42,
+              height: 34,
+              padding: '0 10px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: 'var(--card)',
+              color: 'var(--foreground)',
+              fontSize: 12,
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              cursor: 'pointer',
+              flexShrink: 0,
+            }}
+            aria-label={isEnglish ? action.labelEn : action.labelZh}
+            title={isEnglish ? action.labelEn : action.labelZh}
+          >
+            {action.short}
+          </button>
+        ))}
+      </div>
 
-    if (isMobileLike && isFocused) {
-      return {
-        ...base,
-        position: 'fixed',
-        left: 12,
-        right: 12,
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-        zIndex: 140,
-      }
-    }
-
-    return base
-  }, [isFocused, isMobileLike])
-
-  return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <div style={toolbarStyle}>
+      {showHeightControls ? (
         <div
           style={{
             display: 'flex',
+            justifyContent: 'flex-end',
             gap: 8,
-            overflowX: 'auto',
-            scrollbarWidth: 'none',
+            alignItems: 'center',
+            flexWrap: 'wrap',
           }}
         >
-          {TOOLBAR_ACTIONS.map((action) => (
-            <button
-              key={action.key}
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => insertAction(action)}
-              style={{
-                minWidth: 42,
-                height: 34,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--foreground)',
-                fontSize: 12,
-                fontWeight: 700,
-                whiteSpace: 'nowrap',
-                cursor: 'pointer',
-                flexShrink: 0,
-              }}
-              aria-label={isEnglish ? action.labelEn : action.labelZh}
-              title={isEnglish ? action.labelEn : action.labelZh}
-            >
-              {action.short}
-            </button>
-          ))}
-        </div>
-
-        {showHeightControls ? (
-          <div
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => adjustHeight(-80)}
             style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: 8,
-              alignItems: 'center',
-              flexWrap: 'wrap',
+              minWidth: 36,
+              height: 32,
+              padding: '0 10px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: 'var(--card-muted)',
+              color: 'var(--foreground)',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
             }}
+            title={isEnglish ? 'Shorter' : '\u51cf\u5c0f'}
+            aria-label={isEnglish ? 'Shorter' : '\u51cf\u5c0f'}
           >
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => adjustHeight(-80)}
-              style={{
-                minWidth: 36,
-                height: 32,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'var(--card-muted)',
-                color: 'var(--foreground)',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-              title={isEnglish ? 'Shorter' : '\u51cf\u5c0f'}
-              aria-label={isEnglish ? 'Shorter' : '\u51cf\u5c0f'}
-            >
-              -
-            </button>
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={resetHeight}
-              style={{
-                minWidth: 54,
-                height: 32,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'var(--card-muted)',
-                color: 'var(--foreground)',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-              title={isEnglish ? 'Reset height' : '\u6062\u590d\u9ed8\u8ba4\u9ad8\u5ea6'}
-              aria-label={isEnglish ? 'Reset height' : '\u6062\u590d\u9ed8\u8ba4\u9ad8\u5ea6'}
-            >
-              {isEnglish ? 'Fit' : '\u9ed8\u8ba4'}
-            </button>
-            <button
-              type="button"
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => adjustHeight(80)}
-              style={{
-                minWidth: 36,
-                height: 32,
-                padding: '0 10px',
-                borderRadius: 999,
-                border: '1px solid var(--border)',
-                background: 'var(--card-muted)',
-                color: 'var(--foreground)',
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
-              title={isEnglish ? 'Taller' : '\u589e\u5927'}
-              aria-label={isEnglish ? 'Taller' : '\u589e\u5927'}
-            >
-              +
-            </button>
-          </div>
-        ) : null}
-      </div>
+            -
+          </button>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={resetHeight}
+            style={{
+              minWidth: 54,
+              height: 32,
+              padding: '0 10px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: 'var(--card-muted)',
+              color: 'var(--foreground)',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+            title={isEnglish ? 'Reset height' : '\u6062\u590d\u9ed8\u8ba4\u9ad8\u5ea6'}
+            aria-label={isEnglish ? 'Reset height' : '\u6062\u590d\u9ed8\u8ba4\u9ad8\u5ea6'}
+          >
+            {isEnglish ? 'Fit' : '\u9ed8\u8ba4'}
+          </button>
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => adjustHeight(80)}
+            style={{
+              minWidth: 36,
+              height: 32,
+              padding: '0 10px',
+              borderRadius: 999,
+              border: '1px solid var(--border)',
+              background: 'var(--card-muted)',
+              color: 'var(--foreground)',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+            title={isEnglish ? 'Taller' : '\u589e\u5927'}
+            aria-label={isEnglish ? 'Taller' : '\u589e\u5927'}
+          >
+            +
+          </button>
+        </div>
+      ) : null}
+    </div>
+  )
 
+  return (
+    <div style={{ display: 'grid', gap: isMobileLike ? 6 : 10 }}>
+      {isMobileLike ? null : toolbar}
       <textarea
         className="markdown-composer-textarea"
         ref={textareaRef}
         value={value}
         onChange={(event) => handleChange(event.target.value)}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
         rows={12}
         disabled={disabled}
         placeholder={placeholder}
@@ -407,6 +392,7 @@ export default function MarkdownComposer({
           scrollbarColor: 'var(--composer-scroll-thumb) var(--composer-scroll-track)',
         }}
       />
+      {isMobileLike ? toolbar : null}
     </div>
   )
 }

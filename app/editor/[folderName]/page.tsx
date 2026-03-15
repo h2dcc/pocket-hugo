@@ -252,7 +252,7 @@ export default function EditorPage() {
     setSiteSettings(loadedSettings)
 
     if (isTouchLikeViewport()) {
-      setBodyEditorHeight(380)
+      setBodyEditorHeight(300)
     }
 
     if (!folderName) return
@@ -1495,7 +1495,7 @@ export default function EditorPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setBodyEditorHeight(isTouchLikeViewport() ? 380 : 640)}
+                    onClick={() => setBodyEditorHeight(isTouchLikeViewport() ? 300 : 640)}
                     style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
                     title={isEnglish ? 'Reset height' : '恢复默认高度'}
                     aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}

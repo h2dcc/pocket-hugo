@@ -212,8 +212,8 @@ export default function PageEditorPage() {
     setSettings(loadSiteSettingsFromStorage())
 
     if (isTouchLikeViewport()) {
-      setPageEditorHeight(380)
-      setEntryEditorHeight(150)
+      setPageEditorHeight(300)
+      setEntryEditorHeight(130)
     }
   }, [])
 
@@ -655,7 +655,7 @@ export default function PageEditorPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEntryEditorHeight(isTouchLikeViewport() ? 150 : 180)}
+                    onClick={() => setEntryEditorHeight(isTouchLikeViewport() ? 130 : 180)}
                     style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
                     title={isEnglish ? 'Reset height' : '恢复默认高度'}
                     aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}
@@ -800,7 +800,7 @@ export default function PageEditorPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setPageEditorHeight(isTouchLikeViewport() ? 380 : 640)}
+                        onClick={() => setPageEditorHeight(isTouchLikeViewport() ? 300 : 640)}
                         style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
                         title={isEnglish ? 'Reset height' : '恢复默认高度'}
                         aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}

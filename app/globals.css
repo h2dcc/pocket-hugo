@@ -99,6 +99,14 @@ select {
   font: inherit;
 }
 
+@media (pointer: coarse) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
 .markdown-composer-textarea::-webkit-scrollbar {
   width: 10px;
 }
