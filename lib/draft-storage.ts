@@ -5,6 +5,10 @@
 } from '@/lib/asset-db'
 import { restoreAssetPreviewUrls } from '@/lib/image'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
+import {
+  normalizePostContentMode,
+  normalizePostMarkdownFileName,
+} from '@/lib/site-settings'
 import type { DraftAsset, PostDraft } from '@/lib/types'
 
 const DRAFT_PREFIX = 'draft:'
@@ -84,6 +88,8 @@ export async function loadDraftFromStorage(folderName: string): Promise<PostDraf
     const storedAssetMap = await loadStoredAssetsForDraftKey(draftKey)
     return {
       ...parsed,
+      contentMode: normalizePostContentMode(parsed.contentMode),
+      markdownFileName: normalizePostMarkdownFileName(parsed.markdownFileName),
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
       assets: restoreAssetPreviewUrls(
         mergeStoredAssets(parsed.assets || [], storedAssetMap),
@@ -121,6 +127,8 @@ export function listDraftsFromStorage(): PostDraft[] {
   return drafts
     .map((draft) => ({
       ...draft,
+      contentMode: normalizePostContentMode(draft.contentMode),
+      markdownFileName: normalizePostMarkdownFileName(draft.markdownFileName),
       frontmatter: normalizeFrontmatter(draft.frontmatter),
     }))
     .sort((a, b) => {

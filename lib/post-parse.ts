@@ -1,5 +1,6 @@
 import matter from 'gray-matter'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
+import type { PostContentMode } from '@/lib/site-settings'
 import type { CustomFrontmatterField, Frontmatter, PostDraft } from '@/lib/types'
 
 function normalizeStringArray(value: unknown): string[] {
@@ -12,7 +13,12 @@ function normalizeStringArray(value: unknown): string[] {
   return []
 }
 
-export function parseIndexMdToDraft(folderName: string, content: string): PostDraft {
+export function parseIndexMdToDraft(
+  folderName: string,
+  content: string,
+  contentMode: PostContentMode = 'bundle_single',
+  markdownFileName = 'index.md',
+): PostDraft {
   const parsed = matter(content)
   const data = parsed.data || {}
   const slugKeys = ['slug'] as const
@@ -78,6 +84,8 @@ export function parseIndexMdToDraft(folderName: string, content: string): PostDr
 
   return {
     folderName,
+    contentMode,
+    markdownFileName,
     frontmatter,
     body: parsed.content.trim(),
     assets: [],

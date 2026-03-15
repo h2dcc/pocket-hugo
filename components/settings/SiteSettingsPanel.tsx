@@ -182,6 +182,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
   function handleSave() {
     saveSiteSettingsToStorage(settings)
+    setSettings(loadSiteSettingsFromStorage())
     setDirty(false)
     setStatus(isEnglish ? 'Preferences saved.' : '偏好已保存。')
     onSaved?.()
@@ -294,7 +295,50 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
       <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '1. Image Conversion' : '1. 图片转换压缩'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '1. Post Structure Mode' : '1. \u6587\u7ae0\u7ed3\u6784\u6a21\u5f0f'}</div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish
+              ? 'Choose the Hugo content layout you want PocketHugo to work with.'
+              : '\u9009\u62e9 PocketHugo \u5e94\u8be5\u5339\u914d\u7684 Hugo \u5185\u5bb9\u7ed3\u6784\u3002'}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          <ChoiceButton
+            active={settings.postContentMode === 'bundle_single'}
+            label={isEnglish ? 'Bundle: index.md' : 'Bundle\uff1aindex.md'}
+            description={
+              isEnglish
+                ? 'Each post uses a folder with index.md and optional images in the same folder.'
+                : '\u6bcf\u7bc7\u6587\u7ae0\u4f7f\u7528\u4e00\u4e2a\u76ee\u5f55\uff0c\u76ee\u5f55\u91cc\u662f index.md \u548c\u540c\u76ee\u5f55\u56fe\u7247\u3002'
+            }
+            onClick={() => updateSettings({ postContentMode: 'bundle_single' })}
+          />
+          <ChoiceButton
+            active={settings.postContentMode === 'bundle_multilingual'}
+            label={isEnglish ? 'Bundle: multilingual' : 'Bundle\uff1a\u591a\u8bed\u8a00'}
+            description={
+              isEnglish
+                ? 'Each post uses a folder that can contain index.md, index.en.md, index.de.md, and shared assets.'
+                : '\u6bcf\u7bc7\u6587\u7ae0\u4f7f\u7528\u4e00\u4e2a\u76ee\u5f55\uff0c\u76ee\u5f55\u91cc\u53ef\u5305\u542b index.md\u3001index.en.md\u3001index.de.md \u4ee5\u53ca\u5171\u4eab\u8d44\u6e90\u3002'
+            }
+            onClick={() => updateSettings({ postContentMode: 'bundle_multilingual' })}
+          />
+          <ChoiceButton
+            active={settings.postContentMode === 'flat_markdown'}
+            label={isEnglish ? 'Flat Markdown' : '\u6241\u5e73 Markdown'}
+            description={
+              isEnglish
+                ? 'Posts are plain .md files directly under the posts path. This mode is best when you do not rely on per-post image folders.'
+                : '\u6587\u7ae0\u76f4\u63a5\u4f5c\u4e3a posts \u8def\u5f84\u4e0b\u7684 .md \u6587\u4ef6\u5b58\u5728\uff0c\u66f4\u9002\u5408\u4e0d\u4f9d\u8d56\u6bcf\u7bc7\u6587\u7ae0\u72ec\u7acb\u56fe\u7247\u76ee\u5f55\u7684\u7ad9\u70b9\u3002'
+            }
+            onClick={() => updateSettings({ postContentMode: 'flat_markdown' })}
+          />
+        </div>
+      </section>
+
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '2. Image Conversion' : '2. \u56fe\u7247\u8f6c\u6362\u538b\u7f29'}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
             {isEnglish ? 'Better for Hugo page bundles and lighter mobile uploads.' : '更适合 Hugo page bundle，也更适合手机上传。'}
           </div>
@@ -331,7 +375,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
       <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '2. Auto Image Naming' : '2. 图片自动命名'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '3. Auto Image Naming' : '3. \u56fe\u7247\u81ea\u52a8\u547d\u540d'}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
             {isEnglish ? 'Useful when uploading multiple images from a phone.' : '适合手机连续上传多张图片时减少整理成本。'}
           </div>
@@ -344,7 +388,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
       <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '3. Basic Info Fields' : '3. Basic Info 字段'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '4. Basic Info Fields' : '4. Basic Info 字段'}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
             {isEnglish ? 'Title, Date, and Draft are fixed. Use the small chips on the right to control optional fields.' : 'Title、Date、Draft 固定显示，右侧小按钮控制可选字段是否在编辑器显示。'}
           </div>
@@ -481,7 +525,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
       <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '4. Frontmatter Timezone' : '4. Frontmatter 时区'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '5. Frontmatter Timezone' : '5. Frontmatter 时区'}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
             {isEnglish ? 'Used for the fixed `date` field when creating a new post.' : '用于新建文章时固定的 `date` 字段。'}
           </div>
@@ -497,7 +541,7 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
 
       <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
         <div style={{ display: 'grid', gap: 4 }}>
-          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '5. Categories Preset' : '5. 固定分类'}</div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{isEnglish ? '6. Categories Preset' : '6. 固定分类'}</div>
           <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
             {isEnglish ? 'Define reusable categories here. Editor will provide quick selection.' : '在这里维护常用分类，编辑器里会提供快捷选择。'}
           </div>

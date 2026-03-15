@@ -1,9 +1,12 @@
+import { isBundleMode, type PostContentMode } from '@/lib/site-settings'
 import { commitGithubFiles } from '@/lib/github-api'
 import { requireGithubRepoContext } from '@/lib/github-context'
 
 export async function publishPostToGithub(input: {
   folderName: string
-  indexMdBase64: string
+  contentMode: PostContentMode
+  markdownFileName: string
+  markdownContentBase64: string
   assets: Array<{
     name: string
     contentBase64: string
@@ -11,15 +14,20 @@ export async function publishPostToGithub(input: {
   removedAssetNames?: string[]
 }) {
   const { token, repoConfig } = await requireGithubRepoContext()
-  const postPath = `${repoConfig.postsBasePath}/${input.folderName}`
+  const bundleMode = isBundleMode(input.contentMode)
+  const postPath = bundleMode
+    ? `${repoConfig.postsBasePath}/${input.folderName}`
+    : repoConfig.postsBasePath
   const assetFiles = input.assets.filter(
     (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,
   )
 
   const files = [
     {
-      path: `${postPath}/index.md`,
-      contentBase64: input.indexMdBase64,
+      path: bundleMode
+        ? `${postPath}/${input.markdownFileName}`
+        : `${repoConfig.postsBasePath}/${input.markdownFileName}`,
+      contentBase64: input.markdownContentBase64,
     },
     ...assetFiles.map((asset) => ({
       path: `${postPath}/${asset.name}`,

@@ -51,7 +51,9 @@ export function SiteHeader() {
           letterSpacing: 0.3,
         }}
       >
-        {isEnglish ? 'Browser-first Hugo workflow' : '浏览器优先的 Hugo 工作流'}
+        {isEnglish
+          ? 'Browser-first Hugo workflow'
+          : '浏览器优先的 Hugo 工作流'}
       </div>
       <Link
         href="/app"
@@ -83,8 +85,8 @@ export function SiteHeader() {
         }}
       >
         {isEnglish
-          ? 'Write, manage, and publish Hugo posts in a browser, with a stronger desktop experience.'
-          : '在浏览器中写作、管理并发布 Hugo 文章，桌面端体验更出色。'}
+          ? 'Pocket publishing for Hugo across desktop, tablet, and phone'
+          : '适用于电脑、平板与手机的 Pocket Hugo 发布工具'}
       </p>
     </section>
   )

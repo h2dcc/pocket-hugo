@@ -7,6 +7,24 @@ import { useLanguage } from '@/lib/use-language'
 
 const githubRepoUrl = 'https://github.com/h2dcc/pocket-hugo'
 
+const structureModes = [
+  {
+    titleEn: 'Flat Markdown',
+    titleZh: '单文件',
+    example: 'content/posts/article.md',
+  },
+  {
+    titleEn: 'Single-language Bundle',
+    titleZh: '单语言 Bundle',
+    example: 'content/posts/my-post-single/index.md',
+  },
+  {
+    titleEn: 'Multilingual Bundle',
+    titleZh: '多语言 Bundle',
+    example: 'content/posts/my-post/index.en.md',
+  },
+]
+
 const featureCards = [
   {
     titleEn: 'GitHub Publishing',
@@ -23,10 +41,10 @@ const featureCards = [
   },
   {
     titleEn: 'Native Hugo Structure',
-    titleZh: '原生 Hugo 结构',
+    titleZh: '适配 3 种 Hugo 结构',
     bodyEn:
-      'Keep the familiar `index.md + assets` page bundle workflow without changing your content structure.',
-    bodyZh: '继续使用 `index.md + 图片` 的 page bundle 方式，不打乱现有内容组织。',
+      'Supports single-file bundles, multilingual bundles, and flat Markdown posts, while staying close to Hugo-friendly Git workflows.',
+    bodyZh: '支持单文件 bundle、多语言 bundle 和扁平 Markdown 这 3 种 Hugo 兼容结构，尽量保持接近 Hugo 的 Git 工作流。',
     icon: (
       <>
         <path
@@ -414,10 +432,74 @@ export default function MarketingLanding() {
                 }}
               >
                 {isEnglish
-                  ? 'Keep Hugo page bundles intact while combining GitHub publishing, local drafts, image handling, and page editing into one browser tool with a stronger desktop experience and solid mobile usability.'
-                  : '保留 Hugo 原生 page bundle 结构，把 GitHub 发布、本地草稿、图片处理和页面编辑整合到一个桌面体验更强、同时兼顾手机可用性的浏览器工具里。'}
+                  ? 'Supports three Hugo-compatible content structures, while combining GitHub publishing, local drafts, image handling, and page editing into one browser tool with a stronger desktop experience and solid mobile usability.'
+                  : '围绕 3 种 Hugo 兼容内容结构，把 GitHub 发布、本地草稿、图片处理和页面编辑整合到一个桌面体验更强、同时兼顾手机可用性的浏览器工具里。'}
               </p>
             </div>
+          </div>
+        </section>
+
+        <section
+          style={{
+            borderRadius: 24,
+            border: '1px solid var(--border)',
+            background: 'var(--card)',
+            padding: 'clamp(18px, 3vw, 24px)',
+            boxShadow: 'var(--shadow)',
+            display: 'grid',
+            gap: 18,
+          }}
+        >
+          <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+              {isEnglish ? 'Post Structure Modes' : '文章结构模式'}
+            </div>
+            <h2 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 34px)', lineHeight: 1.15 }}>
+              {isEnglish
+                ? 'Built for Hugo, and compatible with Hexo, Astro, and similar Markdown workflows.'
+                : '为 Hugo 而生，也兼容 Hexo、Astro 等相近的 Markdown 工作流。'}
+            </h2>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: 14,
+            }}
+          >
+            {structureModes.map((mode) => (
+              <article
+                key={mode.titleEn}
+                style={{
+                  borderRadius: 18,
+                  border: '1px solid var(--border)',
+                  background: 'var(--card-muted)',
+                  padding: 16,
+                  display: 'grid',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'grid', gap: 4 }}>
+                  <h3 style={{ margin: 0, fontSize: 17 }}>
+                    {isEnglish ? mode.titleEn : mode.titleZh}
+                  </h3>
+                  <code
+                    style={{
+                      display: 'inline-block',
+                      width: 'fit-content',
+                      padding: '4px 8px',
+                      borderRadius: 999,
+                      background: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      fontSize: 12,
+                    }}
+                  >
+                    {mode.example}
+                  </code>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 

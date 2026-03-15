@@ -1,4 +1,5 @@
 import type { FrontmatterPreferences } from '@/lib/frontmatter-preferences'
+import type { PostContentMode } from '@/lib/site-settings'
 
 export type Frontmatter = {
   description: string
@@ -21,6 +22,8 @@ export type DraftAsset = {
 
 export type PostDraft = {
   folderName: string
+  contentMode?: PostContentMode
+  markdownFileName?: string
   frontmatter: Frontmatter
   body: string
   assets: DraftAsset[]

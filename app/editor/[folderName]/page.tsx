@@ -329,6 +329,8 @@ export default function EditorPage() {
     if (!draft) return ''
     return renderIndexMd(draft.frontmatter, draft.body, draft.frontmatterPreferences)
   }, [draft])
+  const isFlatMarkdownMode = draft?.contentMode === 'flat_markdown'
+  const markdownFileName = draft?.markdownFileName || 'index.md'
 
   const coverAsset = useMemo(() => findCoverAsset(draft), [draft])
   const frontmatterPreferences = useMemo(
@@ -1367,7 +1369,8 @@ export default function EditorPage() {
             ) : null}
           </section>
 
-          <section style={cardStyle}>
+          {!isFlatMarkdownMode ? (
+            <section style={cardStyle}>
             <div
               style={{
                 display: 'flex',
@@ -1589,7 +1592,8 @@ export default function EditorPage() {
                 </div>
               </>
             ) : null}
-          </section>
+            </section>
+          ) : null}
 
           <section style={cardStyle}>
             <div
@@ -1717,7 +1721,7 @@ export default function EditorPage() {
                 ) : null}
               </>
             ) : null}
-          </section>
+            </section>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 24 }}>
@@ -1764,7 +1768,7 @@ export default function EditorPage() {
           </section>
 
           <section style={cardStyle}>
-            <h2 style={sectionTitleStyle}>index.md</h2>
+            <h2 style={sectionTitleStyle}>{markdownFileName}</h2>
             <pre
               style={{
                 marginTop: 14,
@@ -1821,8 +1825,12 @@ export default function EditorPage() {
             </div>
             <div style={{ color: 'var(--muted)', fontSize: 14, lineHeight: 1.7 }}>
               {isEnglish
-                ? 'This will commit `index.md` together with the images and other assets in the current article folder.'
-                : '本次会将 `index.md` 和当前文章目录下的图片等资源文件一起提交到 GitHub。'}
+                ? isFlatMarkdownMode
+                  ? `This will commit \`${markdownFileName}\` directly under your posts path.`
+                  : `This will commit \`${markdownFileName}\` together with the images and other assets in the current article folder.`
+                : isFlatMarkdownMode
+                  ? `本次会将 \`${markdownFileName}\` 直接提交到 posts 路径下。`
+                  : `本次会将 \`${markdownFileName}\` 和当前文章目录下的图片等资源文件一起提交到 GitHub。`}
               <br />
               {isEnglish ? 'Article folder: ' : '文章目录：'}
               {draft.folderName}

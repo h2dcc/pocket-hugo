@@ -5,6 +5,11 @@ import {
   DEFAULT_FRONTMATTER_PREFERENCES,
   normalizeFrontmatterPreferences,
 } from '@/lib/frontmatter-preferences'
+import {
+  isBundleMode,
+  normalizePostContentMode,
+  normalizePostMarkdownFileName,
+} from '@/lib/site-settings'
 import type { PostDraft } from '@/lib/types'
 
 function validateDraft(draft: PostDraft): string | null {
@@ -21,6 +26,7 @@ function validateDraft(draft: PostDraft): string | null {
 export async function POST(request: NextRequest) {
   try {
     const draft = (await request.json()) as PostDraft
+    const contentMode = normalizePostContentMode(draft.contentMode)
 
     const validationError = validateDraft(draft)
     if (validationError) {
@@ -30,18 +36,29 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const indexMd = renderIndexMd(draft.frontmatter, draft.body, draft.frontmatterPreferences)
-    const indexMdBase64 = stringToBase64(indexMd)
-    const changedAssets = draft.assets.filter(
+    const markdownFileName = normalizePostMarkdownFileName(draft.markdownFileName)
+    const markdownContent = renderIndexMd(
+      draft.frontmatter,
+      draft.body,
+      draft.frontmatterPreferences,
+    )
+    const markdownContentBase64 = stringToBase64(markdownContent)
+    const changedAssets = isBundleMode(contentMode)
+      ? draft.assets.filter(
       (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,
-    )
-    const removedAssetNames = (draft.remoteAssetNames || []).filter(
-      (name) => !draft.assets.some((asset) => asset.name === name),
-    )
+        )
+      : []
+    const removedAssetNames = isBundleMode(contentMode)
+      ? (draft.remoteAssetNames || []).filter(
+          (name) => !draft.assets.some((asset) => asset.name === name),
+        )
+      : []
 
     const result = await publishPostToGithub({
       folderName: draft.folderName,
-      indexMdBase64,
+      contentMode,
+      markdownFileName,
+      markdownContentBase64,
       assets: changedAssets.map((asset) => ({
         name: asset.name,
         contentBase64: asset.contentBase64,

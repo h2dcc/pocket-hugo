@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireGithubRepoContext } from '@/lib/github-context'
 import { getGithubFileContent, listGithubDir } from '@/lib/github-read'
 import { parseIndexMdToDraft } from '@/lib/post-parse'
+import {
+  isBundleMode,
+  normalizePostContentMode,
+  normalizePostMarkdownFileName,
+} from '@/lib/site-settings'
 
 function getImageMimeType(filename: string) {
   const lowerName = filename.toLowerCase()
@@ -20,6 +25,8 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const folderName = String(body.folderName || '').trim()
+    const contentMode = normalizePostContentMode(body.contentMode)
+    const markdownFileName = normalizePostMarkdownFileName(body.markdownFileName)
 
     if (!folderName) {
       return NextResponse.json({ ok: false, error: 'Missing folderName.' }, { status: 400 })
@@ -27,25 +34,27 @@ export async function POST(request: NextRequest) {
 
     const { repoConfig } = await requireGithubRepoContext()
     const basePath = repoConfig.postsBasePath
-    const postPath = `${basePath}/${folderName}`
+    const postPath = isBundleMode(contentMode) ? `${basePath}/${folderName}` : basePath
 
-    const indexContent = await getGithubFileContent(`${postPath}/index.md`)
-    const draft = parseIndexMdToDraft(folderName, indexContent)
+    const markdownContent = await getGithubFileContent(`${postPath}/${markdownFileName}`)
+    const draftKey = isBundleMode(contentMode) ? folderName : markdownFileName
+    const draft = parseIndexMdToDraft(draftKey, markdownContent, contentMode, markdownFileName)
 
-    const dirItems = await listGithubDir(postPath)
-    const remoteAssets = dirItems
-      .filter((item) => item.type === 'file')
-      .map((item) => ({
-        item,
-        mimeType: getImageMimeType(item.name),
-      }))
-      .filter((entry) => Boolean(entry.mimeType))
-      .map((item) => ({
-        name: item.item.name,
-        mimeType: item.mimeType as string,
-        contentBase64: '',
-        previewUrl: item.item.download_url || '',
-      }))
+    const remoteAssets = isBundleMode(contentMode)
+      ? (await listGithubDir(postPath))
+          .filter((item) => item.type === 'file')
+          .map((item) => ({
+            item,
+            mimeType: getImageMimeType(item.name),
+          }))
+          .filter((entry) => Boolean(entry.mimeType))
+          .map((item) => ({
+            name: item.item.name,
+            mimeType: item.mimeType as string,
+            contentBase64: '',
+            previewUrl: item.item.download_url || '',
+          }))
+      : []
 
     return NextResponse.json({
       ok: true,

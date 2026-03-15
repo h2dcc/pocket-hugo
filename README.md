@@ -6,99 +6,139 @@
 
 ![Pocket-Hugo-Desktop](pockethugodesktop.webp)
 
+PocketHugo is a browser-first publishing app for GitHub-hosted Markdown content, built around Hugo workflows and optimized for desktop browsers while remaining usable on tablet and phone.
 
-PocketHugo is a browser-first Hugo publishing app for GitHub-hosted content, with solid support across desktop, tablet, and phone.
+Pocket publishing for Hugo across desktop, tablet, and phone.
 
 - GitHub repo: [https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
-- Production (Main Domain Landing): [https://leftn.com](https://leftn.com)
-- Production (App Entry): [https://leftn.com/app](https://leftn.com/app)
+- Production landing: [https://leftn.com](https://leftn.com)
+- Production app entry: [https://leftn.com/app](https://leftn.com/app)
 - Production (Vercel): [https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
 - Production (Cloudflare Workers): [https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
 
+## What PocketHugo Supports
+
+PocketHugo currently focuses on three Hugo-compatible content layouts:
+
+1. `Bundle / Single index`
+   Example: `content/posts/my-post/index.md` with images in the same folder.
+2. `Bundle / Multilingual`
+   Example: `content/posts/my-post/index.md`, `index.en.md`, `index.de.md`, with shared images in the same folder.
+3. `Flat Markdown`
+   Example: `content/posts/my-post.md` directly under the posts path.
+
+These three modes can be selected from the home page under `Publishing Preferences -> Post Structure Mode`.
+
+```text
+content/
+└── posts/
+    ├── article.md                # 1. Flat Markdown
+
+    ├── my-post/                  # 2. Multilingual Bundle
+    │   ├── index.md
+    │   ├── index.en.md
+    │   └── cover.jpg
+
+    └── my-post-single/           # 3. Single-language Bundle
+        ├── index.md
+        └── cover.jpg
+```
+
+| Feature | Flat Markdown | Single-language Bundle | Multilingual Bundle |
+| ---- | ---- | ---- | ---- |
+| Images | ❌ | ✅ | ✅ |
+| Multilingual | ❌ | ❌ | ✅ |
+| Typical use case | quick text-first notes | richer posts with local assets | localized content |
+
+## What PocketHugo Does Not Support
+
+PocketHugo does not support image management for "separated text and media" workflows, for example:
+
+- Markdown files in one folder while images are stored in another global folder
+- Date-based image archives such as `/images/2026/...`
+- CMS-like media libraries that are independent from the post location
+
+In other words, PocketHugo works best when the Markdown file and its assets stay together, or when you use flat Markdown and do not rely on per-post image folders at all.
+
+## Hugo First, But Not Hugo Only
+
+PocketHugo is designed for Hugo first, but some projects in other SSGs can still use it if they follow one of the supported structures above and rely on regular frontmatter-based Markdown files.
+
+Possible fit:
+
+- Astro content folders that keep Markdown files and assets together
+- Hexo posts that are stored as Markdown files under a Git-tracked content path
+- Other static site generators that use GitHub-hosted Markdown plus frontmatter
+
+Not a good fit:
+
+- systems that depend on a central media library
+- projects that require automatic handling of "text here, images elsewhere"
+- content pipelines that are not folder-oriented or do not map cleanly to GitHub file commits
+
 ## Why PocketHugo
 
-PocketHugo keeps Hugo's native page bundle workflow and removes most of the Git friction in browser-based publishing:
+PocketHugo reduces Git friction while preserving a Hugo-friendly publishing structure:
 
-- write/edit in desktop, tablet, or mobile browser
-- keep `index.md + images` in one folder
-- compress, convert, and auto-name images during upload to reduce repo storage and build overhead
-- publish back to GitHub in one batch commit
-- no app-side user database for your article content
-
-## Builder Story
-
-This project comes from real high-frequency publishing experience.
-
-As a heavy Hugo user publishing 100+ posts per year, I have repeatedly faced the same pain points in mobile writing, image handling, and Git-based publishing workflows. I tested many existing solutions and spent a long time iterating on different approaches, but most options either broke Hugo's native structure or felt too heavy for daily use.
-
-PocketHugo was built to solve those practical problems directly: keep Hugo-native structure, reduce friction on phones, and make frequent publishing reliable.
-
-### Long-term Iteration Evidence
-
-This was not a one-week prototype. It came from a long sequence of Hugo workflow experiments:
-
-- 2024-06-02: publishing Hugo from Android with StackEdit
-- 2024-12-09: adapting CMS workflow to Hugo directory structure
-- 2025-05-08: writing Hugo with StackEdit in daily workflow
-- 2025-10-27: publishing Hugo via GitHub Issue / GitHub App ideas
-
-
-After repeatedly trying and documenting these paths, PocketHugo became a practical browser-based workflow for Hugo writing and publishing.
+- write and edit in desktop, tablet, or mobile browser
+- choose among three Hugo-compatible post structure modes
+- compress, convert, and auto-name images during upload
+- keep local drafts in the browser and reopen them later
+- reload already-published posts from GitHub and edit again
+- publish Markdown and related assets back to GitHub in one batch commit
 
 ## Main Features
 
 ### Post workflow
 
 - GitHub OAuth sign-in
-- repo/branch/posts-path selection
+- repository / branch / posts path selection
 - local draft storage and continue editing
 - load already-published posts from GitHub and edit again
 - publish confirmation before pushing
-- batch commit changed markdown + assets in one publish
-- show changed file list on publish result page
+- publish result page with changed file list
+
+### Structure-aware publishing
+
+- `Bundle / Single index`: direct folder open using `index.md`
+- `Bundle / Multilingual`: open a folder, then choose `index.en.md`, `index.de.md`, and similar files
+- `Flat Markdown`: list and publish standalone `.md` files directly under the posts path
 
 ### Image workflow
 
-- optional auto conversion/compression
-- configurable max width (up to 4096) and quality precision
+- optional auto conversion and compression
+- configurable max width and quality
 - optional auto file naming (`1.webp`, `2.webp`, ...)
-- insert image markdown at current cursor position
-- delete image from editor list and sync remote deletion on republish
-- tap image to preview large version and copy file name
+- batch upload up to 9 images
+- preview, copy filename, insert Markdown, set cover, and delete assets
+
+Note:
+
+- Image workflow is meant for bundle-style content where Markdown and assets live together.
+- In `Flat Markdown` mode, PocketHugo does not manage a separate image folder for you.
 
 ### Editor experience
 
-- mobile-friendly layout and controls
-- collapsible sections (Basic Info / Images / Body / Frontmatter)
-- slash command markdown helper (`/`) in body editor
-- markdown preview with responsive width and wrapped code blocks
-- manual save button while keeping autosave
-- light/dark mode and Chinese/English switch
+- browser-first layout with solid desktop workflow
+- usable on tablet and phone when needed
+- collapsible sections
+- slash command helper (`/`) in the body editor
+- Markdown preview
+- autosave plus manual save
+- light/dark theme and Chinese/English switch
 
-### Page Editor (standalone pages + quick timeline)
+### Page editor
 
-- two modes:
-  - Standalone Page: edit one page directly
-  - Quick Timeline: add/edit multiple timestamped entries
-- use Quick Timeline for fast status-style updates
-- image upload/insert/delete support in page editor
-- frontmatter editing area
-- transfer timeline page to a new post draft in one step
-
-### Preferences and customization
-
-- publishing preferences panel on home page
-- custom basic-info field mapping (except fixed `title/date/draft`)
-- custom cover-image field key
-- fixed categories presets for quick select
-- tags input with English comma rules
-- timezone preference for frontmatter datetime
+- Standalone Page mode
+- Quick Timeline mode
+- quick status publishing
+- turn timeline content into a post draft
 
 ## Architecture & Privacy
 
 PocketHugo is local-first:
 
-- drafts/preferences are stored in the user's browser
+- drafts and preferences are stored in the browser
 - session/config cookies are encrypted and stored client-side
 - backend does not maintain a user content database
 - GitHub token usage is server-side only
@@ -131,7 +171,7 @@ GITHUB_CLIENT_ID=your-client-id
 GITHUB_CLIENT_SECRET=your-client-secret
 ```
 
-## Get GitHub OAuth Credentials
+## GitHub OAuth Setup
 
 Go to:
 
@@ -139,18 +179,16 @@ Go to:
 
 Then:
 
-1. Set `Application name` (for example: `PocketHugo Vercel`)
+1. Set `Application name`
 2. Set `Homepage URL` to your deployment domain
 3. Set `Authorization callback URL` to `https://your-domain/api/auth/callback`
-4. Click **Register application**
-5. Copy **Client ID** -> `GITHUB_CLIENT_ID`
-6. Click **Generate a new client secret** -> `GITHUB_CLIENT_SECRET`
-
-
+4. Register the app
+5. Copy `Client ID` to `GITHUB_CLIENT_ID`
+6. Generate a client secret and copy it to `GITHUB_CLIENT_SECRET`
 
 ## Environment Variables
 
-Required in all environments:
+Required:
 
 - `APP_URL`
 - `APP_SESSION_SECRET`
@@ -188,42 +226,29 @@ LANDING_PAGE_HOSTS=leftn.com,www.leftn.com
 
 ### Landing page behavior
 
-- When the request host matches `LANDING_PAGE_HOSTS`, `/` shows the marketing landing page.
+- When the request host matches `LANDING_PAGE_HOSTS`, `/` shows the landing page.
 - `/app` always opens the application directly.
-- If `LANDING_PAGE_HOSTS` does not match the current host, `/` opens the application directly.
-- This keeps self-hosted deployments app-first by default, while still allowing a custom main-domain landing page.
+- If the current host does not match `LANDING_PAGE_HOSTS`, `/` opens the app directly.
 
-## Deploy to Vercel
+## Deploy
 
-1. Import this repo in Vercel
-2. Set environment variables in Project Settings
-3. Build command:
+### Vercel
 
 ```bash
 npm run build:vercel
 ```
 
-4. Deploy
-
-## Deploy to Cloudflare Workers
-
-This repo already includes:
-
-- `wrangler.jsonc`
-- `open-next.config.ts`
-
-Deploy commands:
+### Cloudflare Workers
 
 ```bash
 npm run build:cloudflare
 ```
 
-
 ## Security Notes
 
 - Keep `.env.local` out of git
 - Rotate `GITHUB_CLIENT_SECRET` immediately if exposed
-- Use strong `APP_SESSION_SECRET`
+- Use a strong `APP_SESSION_SECRET`
 - Use production domains in OAuth callback URLs
 
 ## License

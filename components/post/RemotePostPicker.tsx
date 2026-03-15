@@ -1,34 +1,58 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { saveDraftToStorage } from '@/lib/draft-storage'
+import { loadSiteSettingsFromStorage, type PostContentMode } from '@/lib/site-settings'
 import { useLanguage } from '@/lib/use-language'
 
 type RemotePostItem = {
   name: string
   path: string
+  kind: 'folder' | 'file'
+  markdownFiles: string[]
 }
 
 type Props = {
   enabled: boolean
   reloadKey: string
-  onLoaded: (folderName: string) => void
+  onLoaded: (draftFolderName: string) => void
+}
+
+function getModeDescription(isEnglish: boolean, mode: PostContentMode) {
+  if (mode === 'bundle_multilingual') {
+    return isEnglish
+      ? 'Current mode uses multilingual bundles. Open a folder first, then choose the Markdown file inside it.'
+      : '当前模式使用多语言 bundle。先展开文章目录，再选择其中的 Markdown 文件。'
+  }
+
+  if (mode === 'flat_markdown') {
+    return isEnglish
+      ? 'Current mode uses flat Markdown files. Each item below is a file under your posts path.'
+      : '当前模式使用扁平 Markdown 文件。下面每一项都是 posts 路径下的独立文件。'
+  }
+
+  return isEnglish
+    ? 'Current mode uses single-file bundles, so clicking a folder opens its index.md directly.'
+    : '当前模式使用单文件 bundle，点击目录会直接打开其中的 index.md。'
 }
 
 export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props) {
   const { isEnglish } = useLanguage()
+  const contentMode = loadSiteSettingsFromStorage().postContentMode
   const [posts, setPosts] = useState<RemotePostItem[]>([])
   const [loading, setLoading] = useState(false)
   const [loadingPost, setLoadingPost] = useState('')
   const [error, setError] = useState('')
   const [keyword, setKeyword] = useState('')
   const [repoLabel, setRepoLabel] = useState('')
+  const [expandedItemName, setExpandedItemName] = useState('')
 
   useEffect(() => {
     if (!enabled) {
       setPosts([])
       setError('')
       setRepoLabel('')
+      setExpandedItemName('')
       return
     }
 
@@ -37,7 +61,10 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       setError('')
 
       try {
-        const response = await fetch('/api/list-posts', { cache: 'no-store' })
+        const query = new URLSearchParams({ mode: contentMode })
+        const response = await fetch(`/api/list-posts?${query.toString()}`, {
+          cache: 'no-store',
+        })
         const result = await response.json()
 
         if (!response.ok || !result.ok) {
@@ -63,7 +90,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
     }
 
     void fetchPosts()
-  }, [enabled, reloadKey, isEnglish])
+  }, [contentMode, enabled, isEnglish, reloadKey])
 
   const filteredPosts = useMemo(() => {
     const q = keyword.trim().toLowerCase()
@@ -71,15 +98,20 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
     return posts.filter((post) => post.name.toLowerCase().includes(q))
   }, [posts, keyword])
 
-  async function handleLoad(folderName: string) {
-    setLoadingPost(folderName)
+  async function handleLoad(folderName: string, markdownFileName: string) {
+    const loadingKey = `${folderName}/${markdownFileName}`
+    setLoadingPost(loadingKey)
     setError('')
 
     try {
       const response = await fetch('/api/load-post', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folderName }),
+        body: JSON.stringify({
+          folderName,
+          contentMode,
+          markdownFileName,
+        }),
       })
 
       const result = await response.json()
@@ -101,7 +133,7 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         )
       }
 
-      onLoaded(folderName)
+      onLoaded(result.draft.folderName)
     } catch (error) {
       setError(
         error instanceof Error ? error.message : isEnglish ? 'Failed to load post' : '读取文章失败',
@@ -137,12 +169,26 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
         </div>
       ) : null}
 
+      {enabled ? (
+        <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+          {getModeDescription(isEnglish, contentMode)}
+        </div>
+      ) : null}
+
       <div style={{ marginTop: 12 }}>
         <input
           type="text"
           value={keyword}
           onChange={(e) => setKeyword(e.target.value)}
-          placeholder={isEnglish ? 'Search folder name' : '搜索目录名'}
+          placeholder={
+            contentMode === 'flat_markdown'
+              ? isEnglish
+                ? 'Search file name'
+                : '搜索文件名'
+              : isEnglish
+                ? 'Search folder name'
+                : '搜索目录名'
+          }
           disabled={!enabled}
           style={{
             width: '100%',
@@ -165,27 +211,108 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
       {error ? <div style={{ marginTop: 12, color: 'var(--danger)' }}>{error}</div> : null}
 
       <div style={{ display: 'grid', gap: 8, marginTop: 14, maxHeight: 420, overflowY: 'auto' }}>
-        {filteredPosts.map((post) => (
-          <button
-            key={post.name}
-            type="button"
-            onClick={() => handleLoad(post.name)}
-            disabled={!enabled || loadingPost === post.name}
-            style={{
-              textAlign: 'left',
-              padding: '10px 12px',
-              borderRadius: 12,
-              border: '1px solid var(--border)',
-              background: 'var(--card)',
-              color: 'var(--foreground)',
-              cursor: 'pointer',
-              fontSize: 14,
-              fontWeight: 700,
-            }}
-          >
-            {loadingPost === post.name ? (isEnglish ? 'Loading...' : '读取中...') : post.name}
-          </button>
-        ))}
+        {filteredPosts.map((post) => {
+          const directFileName =
+            contentMode === 'flat_markdown'
+              ? post.name
+              : contentMode === 'bundle_single'
+                ? 'index.md'
+                : ''
+
+          return (
+            <div
+              key={`${post.kind}:${post.name}`}
+              style={{
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                background: 'var(--card)',
+                overflow: 'hidden',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  if (directFileName) {
+                    void handleLoad(post.name, directFileName)
+                    return
+                  }
+
+                  setExpandedItemName((current) => (current === post.name ? '' : post.name))
+                }}
+                disabled={!enabled || loadingPost === `${post.name}/${directFileName}`}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '10px 12px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--foreground)',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 700,
+                }}
+              >
+                {loadingPost === `${post.name}/${directFileName}`
+                  ? isEnglish
+                    ? 'Loading...'
+                    : '读取中...'
+                  : post.name}
+              </button>
+
+              {contentMode === 'bundle_multilingual' && expandedItemName === post.name ? (
+                <div
+                  style={{
+                    display: 'grid',
+                    gap: 8,
+                    padding: 12,
+                    borderTop: '1px solid var(--border)',
+                    background: 'var(--card-muted)',
+                  }}
+                >
+                  {post.markdownFiles.length ? (
+                    post.markdownFiles.map((fileName) => {
+                      const loadingKey = `${post.name}/${fileName}`
+
+                      return (
+                        <button
+                          key={loadingKey}
+                          type="button"
+                          onClick={() => {
+                            void handleLoad(post.name, fileName)
+                          }}
+                          disabled={!enabled || loadingPost === loadingKey}
+                          style={{
+                            textAlign: 'left',
+                            padding: '9px 11px',
+                            borderRadius: 10,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--foreground)',
+                            cursor: 'pointer',
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {loadingPost === loadingKey
+                            ? isEnglish
+                              ? 'Loading...'
+                              : '读取中...'
+                            : fileName}
+                        </button>
+                      )
+                    })
+                  ) : (
+                    <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {isEnglish
+                        ? 'No Markdown files were found in this folder.'
+                        : '这个目录下没有找到 Markdown 文件。'}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )
+        })}
 
         {enabled && !loading && !filteredPosts.length ? (
           <div
@@ -206,4 +333,3 @@ export default function RemotePostPicker({ enabled, reloadKey, onLoaded }: Props
     </div>
   )
 }
-

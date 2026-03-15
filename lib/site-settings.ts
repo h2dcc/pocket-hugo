@@ -1,10 +1,16 @@
-﻿import {
+import {
   DEFAULT_FRONTMATTER_PREFERENCES,
   normalizeFrontmatterPreferences,
   type FrontmatterPreferences,
 } from '@/lib/frontmatter-preferences'
 
+export type PostContentMode =
+  | 'bundle_single'
+  | 'bundle_multilingual'
+  | 'flat_markdown'
+
 export type SiteSettings = {
+  postContentMode: PostContentMode
   imageConversionEnabled: boolean
   imageMaxWidth: number
   imageQuality: number
@@ -17,6 +23,7 @@ export type SiteSettings = {
 export const SITE_SETTINGS_STORAGE_KEY = 'site:settings'
 
 export const DEFAULT_SITE_SETTINGS: SiteSettings = {
+  postContentMode: 'bundle_single',
   imageConversionEnabled: true,
   imageMaxWidth: 1080,
   imageQuality: 0.82,
@@ -46,15 +53,48 @@ function normalizeStringList(value: unknown): string[] {
   return result
 }
 
+export function normalizePostContentMode(value: unknown): PostContentMode {
+  if (value === 'bundle_multilingual' || value === 'flat_markdown') {
+    return value
+  }
+  return DEFAULT_SITE_SETTINGS.postContentMode
+}
+
+export function normalizePostMarkdownFileName(value: unknown): string {
+  const fallback = 'index.md'
+  const raw = String(value ?? '').trim().replace(/\\/g, '/')
+  const baseName = raw.split('/').pop()?.trim() || ''
+
+  if (!baseName) {
+    return fallback
+  }
+
+  const sanitized = baseName.replace(/[\r\n\t]/g, '').trim()
+  if (!sanitized) {
+    return fallback
+  }
+
+  const withExtension = /\.md$/i.test(sanitized) ? sanitized : `${sanitized}.md`
+  return withExtension === '.md' ? fallback : withExtension
+}
+
+export function isBundleMode(mode: PostContentMode): boolean {
+  return mode !== 'flat_markdown'
+}
+
 export function normalizeSiteSettings(value: unknown): SiteSettings {
   const raw = (value || {}) as Partial<SiteSettings>
 
   return {
+    postContentMode: normalizePostContentMode(raw.postContentMode),
     imageConversionEnabled:
       typeof raw.imageConversionEnabled === 'boolean'
         ? raw.imageConversionEnabled
         : DEFAULT_SITE_SETTINGS.imageConversionEnabled,
-    imageMaxWidth: Math.max(320, Math.round(normalizeNumber(raw.imageMaxWidth, DEFAULT_SITE_SETTINGS.imageMaxWidth))),
+    imageMaxWidth: Math.max(
+      320,
+      Math.round(normalizeNumber(raw.imageMaxWidth, DEFAULT_SITE_SETTINGS.imageMaxWidth)),
+    ),
     imageQuality: Math.min(
       1,
       Math.max(0.1, normalizeNumber(raw.imageQuality, DEFAULT_SITE_SETTINGS.imageQuality)),
@@ -65,7 +105,12 @@ export function normalizeSiteSettings(value: unknown): SiteSettings {
         : DEFAULT_SITE_SETTINGS.autoImageNamingEnabled,
     timezoneOffsetHours: Math.min(
       14,
-      Math.max(-12, Math.round(normalizeNumber(raw.timezoneOffsetHours, DEFAULT_SITE_SETTINGS.timezoneOffsetHours))),
+      Math.max(
+        -12,
+        Math.round(
+          normalizeNumber(raw.timezoneOffsetHours, DEFAULT_SITE_SETTINGS.timezoneOffsetHours),
+        ),
+      ),
     ),
     categoriesPreset: normalizeStringList(raw.categoriesPreset),
     frontmatterPreferences: normalizeFrontmatterPreferences(raw.frontmatterPreferences),
@@ -95,4 +140,3 @@ export function saveSiteSettingsToStorage(settings: SiteSettings) {
     JSON.stringify(normalizeSiteSettings(settings)),
   )
 }
-
