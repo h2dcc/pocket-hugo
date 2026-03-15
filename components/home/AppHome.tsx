@@ -619,7 +619,7 @@ export default function HomePage() {
       repoConfigCollapseTimerRef.current = setTimeout(() => {
         setVisiblePanel((current) => (current === 'repo' ? null : current))
         repoConfigCollapseTimerRef.current = null
-      }, 5000)
+      }, 2500)
     } catch (error) {
       setConfigError(error instanceof Error ? error.message : isEnglish ? 'Failed to save repository settings' : '保存配置失败')
       setVisiblePanel('repo')
@@ -780,7 +780,7 @@ export default function HomePage() {
         pageConfigCollapseTimerRef.current = setTimeout(() => {
           setVisiblePanel((current) => (current === 'page' ? null : current))
           pageConfigCollapseTimerRef.current = null
-        }, 5000)
+        }, 2500)
       }
       return true
     } catch (error) {
@@ -1260,7 +1260,7 @@ export default function HomePage() {
             settingsCollapseTimerRef.current = setTimeout(() => {
               setVisiblePanel((current) => (current === 'settings' ? null : current))
               settingsCollapseTimerRef.current = null
-            }, 5000)
+          }, 2500)
           }}
         />
       ) : null}

@@ -21,6 +21,8 @@
   --hero-chip-text: #37506d;
   --hero-border: rgba(116, 137, 165, 0.24);
   --hero-orb: rgba(255, 255, 255, 0.38);
+  --composer-scroll-thumb: #8da6bf;
+  --composer-scroll-track: #e8eef5;
 }
 
 html[data-theme='dark'] {
@@ -46,6 +48,8 @@ html[data-theme='dark'] {
   --hero-chip-text: #d9e6ff;
   --hero-border: rgba(145, 170, 212, 0.16);
   --hero-orb: rgba(133, 163, 255, 0.16);
+  --composer-scroll-thumb: #5f7895;
+  --composer-scroll-track: #1a2433;
 }
 
 html,
@@ -93,6 +97,25 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+.markdown-composer-textarea::-webkit-scrollbar {
+  width: 10px;
+}
+
+.markdown-composer-textarea::-webkit-scrollbar-track {
+  background: var(--composer-scroll-track);
+  border-radius: 999px;
+}
+
+.markdown-composer-textarea::-webkit-scrollbar-thumb {
+  background: var(--composer-scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--composer-scroll-track);
+}
+
+.markdown-composer-textarea::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--composer-scroll-thumb) 82%, var(--foreground) 18%);
 }
 
 .markdown-preview {

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import ImageUploader from '@/components/post/ImageUploader'
+import MarkdownComposer from '@/components/post/MarkdownComposer'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import IconButton from '@/components/ui/IconButton'
@@ -36,23 +37,6 @@ type PageConfigResponse = {
   error?: string
 }
 
-type SlashTarget = 'entry' | 'body'
-
-type SlashCommand = {
-  key: string
-  label: string
-  keywords: string[]
-  markdown: string
-}
-
-type SlashState = {
-  open: boolean
-  target: SlashTarget
-  query: string
-  start: number
-  end: number
-}
-
 function isImageMarkdown(markdown: string) {
   const lines = markdown
     .trim()
@@ -65,6 +49,14 @@ function isImageMarkdown(markdown: string) {
 
 function buildStandaloneImageBlock(markdown: string) {
   return `\n${markdown.trim()}\n`
+}
+
+function getAssetAltText(assetName: string) {
+  return assetName.replace(/\.[^.]+$/i, '')
+}
+
+function buildAssetMarkdown(assetName: string) {
+  return `![${getAssetAltText(assetName)}](${assetName})`
 }
 
 function normalizeFolderName(input: string) {
@@ -95,6 +87,16 @@ function PlusIcon() {
   )
 }
 
+function TextStatsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 17H12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function getDatePartsWithOffset(offsetHours: number) {
   const now = new Date()
   const utcMillis = now.getTime() + now.getTimezoneOffset() * 60_000
@@ -117,24 +119,9 @@ function getCurrentDateTime(offsetHours: number) {
   return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}${sign}${offsetHourText}:00`
 }
 
-function estimateSlashMenuPosition(
-  textarea: HTMLTextAreaElement,
-  value: string,
-  cursor: number,
-) {
-  const rect = textarea.getBoundingClientRect()
-  const before = value.slice(0, cursor)
-  const lines = before.split('\n')
-  const line = lines[lines.length - 1] || ''
-  const lineHeight = 26
-  const charWidth = 8.2
-
-  const rawLeft = rect.left + 14 + line.length * charWidth
-  const maxLeft = Math.max(rect.left + 12, rect.right - 260)
-  const left = Math.min(rawLeft, maxLeft)
-  const top = Math.max(12, rect.top + 12 + (lines.length - 1) * lineHeight - 10)
-
-  return { top, left }
+function isTouchLikeViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
 }
 
 function mergeDrafts(remoteDraft: PageDraft, localDraft: PageDraft | null) {
@@ -173,11 +160,13 @@ export default function PageEditorPage() {
   const [status, setStatus] = useState('')
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit')
   const [newEntryContent, setNewEntryContent] = useState('## ')
+  const [entryEditorHeight, setEntryEditorHeight] = useState(180)
   const [publishing, setPublishing] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [imagesOpen, setImagesOpen] = useState(true)
   const [entriesOpen, setEntriesOpen] = useState(true)
   const [pageContentOpen, setPageContentOpen] = useState(true)
+  const [pageEditorHeight, setPageEditorHeight] = useState(640)
   const [frontmatterOpen, setFrontmatterOpen] = useState(false)
   const [transferOpen, setTransferOpen] = useState(false)
   const [settings, setSettings] = useState<SiteSettings>(DEFAULT_SITE_SETTINGS)
@@ -187,14 +176,6 @@ export default function PageEditorPage() {
   const [transferError, setTransferError] = useState('')
   const [transferStatus, setTransferStatus] = useState('')
   const [transferring, setTransferring] = useState(false)
-  const [slashState, setSlashState] = useState<SlashState>({
-    open: false,
-    target: 'body',
-    query: '',
-    start: 0,
-    end: 0,
-  })
-  const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 })
 
   const card: React.CSSProperties = {
     border: '1px solid var(--border)',
@@ -214,8 +195,26 @@ export default function PageEditorPage() {
     fontSize: 14,
   }
 
+  const bodyHeightButtonStyle: React.CSSProperties = {
+    minWidth: 36,
+    height: 30,
+    padding: '0 10px',
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'var(--card-muted)',
+    color: 'var(--foreground)',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  }
+
   useEffect(() => {
     setSettings(loadSiteSettingsFromStorage())
+
+    if (isTouchLikeViewport()) {
+      setPageEditorHeight(380)
+      setEntryEditorHeight(150)
+    }
   }, [])
 
   useEffect(() => {
@@ -328,13 +327,6 @@ export default function PageEditorPage() {
     }
   }, [draft, isEnglish])
 
-  useEffect(() => {
-    const textarea = bodyRef.current
-    if (!textarea || draft?.mode !== 'page') return
-    textarea.style.height = '0px'
-    textarea.style.height = `${Math.max(320, textarea.scrollHeight)}px`
-  }, [draft?.body, draft?.mode, activeTab])
-
   const previewBody = useMemo(() => {
     if (!draft) return ''
     return draft.mode === 'live' ? renderLiveEntries(draft.entries) : draft.body
@@ -370,8 +362,10 @@ export default function PageEditorPage() {
     const insertionEnd = isImageBlock ? insertionStart : end
     const next = current.slice(0, insertionStart) + insertionText + current.slice(insertionEnd)
     apply(next)
+    const scrollTop = textarea.scrollTop
     requestAnimationFrame(() => {
       textarea.focus()
+      textarea.scrollTop = scrollTop
       const cursor = insertionStart + insertionText.length
       textarea.setSelectionRange(cursor, cursor)
     })
@@ -389,81 +383,16 @@ export default function PageEditorPage() {
 
   async function copyAssetName(assetName: string) {
     try {
-      await navigator.clipboard.writeText(assetName)
+      await navigator.clipboard.writeText(buildAssetMarkdown(assetName))
       setCopiedAssetName(assetName)
       setTimeout(() => setCopiedAssetName(''), 1200)
     } catch {
       setStatus(
-        isEnglish ? 'Unable to copy file name on this device' : '当前设备无法复制文件名',
+        isEnglish
+          ? 'Unable to copy image Markdown on this device'
+          : '当前设备无法复制图片 Markdown 链接',
       )
     }
-  }
-
-  function updateSlashState(target: SlashTarget, value: string, cursor: number) {
-    const textarea = target === 'entry' ? entryRef.current : bodyRef.current
-    const textBeforeCursor = value.slice(0, cursor)
-    const slashIndex = textBeforeCursor.lastIndexOf('/')
-    if (slashIndex < 0) {
-      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
-      return
-    }
-
-    const prefixChar = slashIndex === 0 ? ' ' : textBeforeCursor[slashIndex - 1]
-    const commandText = textBeforeCursor.slice(slashIndex + 1)
-    const isLineBreakInside = commandText.includes('\n')
-    const hasSpaceInside = /\s/.test(commandText)
-    const validPrefix = /\s/.test(prefixChar)
-
-    if (!validPrefix || isLineBreakInside || hasSpaceInside) {
-      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
-      return
-    }
-
-    setSlashState({
-      open: true,
-      target,
-      query: commandText.toLowerCase(),
-      start: slashIndex,
-      end: cursor,
-    })
-    if (textarea) {
-      setSlashMenuPos(estimateSlashMenuPosition(textarea, value, cursor))
-    }
-  }
-
-  function replaceSlashToken(markdown: string) {
-    if (!draft) return
-
-    if (slashState.target === 'entry') {
-      const textarea = entryRef.current
-      const nextValue =
-        newEntryContent.slice(0, slashState.start) +
-        markdown +
-        newEntryContent.slice(slashState.end)
-      const nextCursor = slashState.start + markdown.length
-      setNewEntryContent(nextValue)
-      requestAnimationFrame(() => {
-        if (!textarea) return
-        textarea.focus()
-        textarea.setSelectionRange(nextCursor, nextCursor)
-      })
-    } else {
-      const textarea = bodyRef.current
-      const currentBody = draft.body
-      const nextValue =
-        currentBody.slice(0, slashState.start) +
-        markdown +
-        currentBody.slice(slashState.end)
-      const nextCursor = slashState.start + markdown.length
-      updateBody(nextValue)
-      requestAnimationFrame(() => {
-        if (!textarea) return
-        textarea.focus()
-        textarea.setSelectionRange(nextCursor, nextCursor)
-      })
-    }
-
-    setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
   }
 
   function addEntry() {
@@ -658,72 +587,6 @@ export default function PageEditorPage() {
     }
   }
 
-  const slashCommands: SlashCommand[] = [
-    {
-      key: 'h2',
-      label: isEnglish ? 'Heading' : '标题',
-      keywords: ['h2', 'heading', 'title'],
-      markdown: isEnglish ? '## Section Title' : '## 小节标题',
-    },
-    {
-      key: 'bold',
-      label: isEnglish ? 'Bold' : '加粗',
-      keywords: ['bold', 'strong'],
-      markdown: isEnglish ? '**bold text**' : '**加粗文字**',
-    },
-    {
-      key: 'italic',
-      label: isEnglish ? 'Italic' : '斜体',
-      keywords: ['italic'],
-      markdown: isEnglish ? '*italic text*' : '*斜体文字*',
-    },
-    {
-      key: 'link',
-      label: isEnglish ? 'Link' : '链接',
-      keywords: ['link', 'url'],
-      markdown: isEnglish ? '[link text](https://example.com)' : '[链接文字](https://example.com)',
-    },
-    {
-      key: 'code',
-      label: isEnglish ? 'Code' : '代码',
-      keywords: ['code', 'inline'],
-      markdown: isEnglish ? '`code`' : '`代码`',
-    },
-    {
-      key: 'codeblock',
-      label: isEnglish ? 'Code Block' : '代码块',
-      keywords: ['codeblock', 'block'],
-      markdown: '\n```ts\nconst example = true\n```\n',
-    },
-    {
-      key: 'quote',
-      label: isEnglish ? 'Quote' : '引用',
-      keywords: ['quote'],
-      markdown: isEnglish ? '> quoted text' : '> 引用内容',
-    },
-    {
-      key: 'list',
-      label: isEnglish ? 'List' : '列表',
-      keywords: ['list', 'ul'],
-      markdown: isEnglish ? '- list item' : '- 列表项',
-    },
-    {
-      key: 'table',
-      label: isEnglish ? 'Table' : '表格',
-      keywords: ['table'],
-      markdown: '\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n',
-    },
-  ]
-
-  const filteredSlashCommands = slashState.query
-    ? slashCommands.filter((command) =>
-        [command.label, command.key, ...command.keywords]
-          .join(' ')
-          .toLowerCase()
-          .includes(slashState.query),
-      )
-    : slashCommands
-
   if (checkingAuth || loading || !draft) {
     return (
       <main style={{ padding: 'clamp(12px, 3vw, 20px)', maxWidth: 1080, margin: '0 auto', display: 'grid', gap: 16 }}>
@@ -778,56 +641,51 @@ export default function PageEditorPage() {
         <div style={{ display: 'grid', gap: 20 }}>
           {draft.mode === 'live' ? (
             <section style={card}>
-              <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Quick Entry' : '快速记录'}</h2>
-              <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                <textarea
-                  ref={entryRef}
-                  value={newEntryContent}
-                  onChange={(event) => {
-                    const nextValue = event.target.value
-                    const cursor = event.target.selectionStart ?? nextValue.length
-                    setNewEntryContent(nextValue)
-                    updateSlashState('entry', nextValue, cursor)
-                  }}
-                  onKeyDown={(event) => {
-                    if (!(slashState.open && slashState.target === 'entry')) return
-                    if (event.key === 'Escape') {
-                      event.preventDefault()
-                      setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
-                      return
-                    }
-                    if (event.key === 'Enter' || event.key === 'Tab') {
-                      const first = filteredSlashCommands[0]
-                      if (!first) return
-                      event.preventDefault()
-                      replaceSlashToken(first.markdown)
-                    }
-                  }}
-                  rows={5}
-                  style={{ ...input, minHeight: 140, resize: 'vertical', lineHeight: 1.7 }}
-                />
-                {slashState.open && slashState.target === 'entry' ? (
-                  <div style={{ position: 'fixed', top: slashMenuPos.top, left: slashMenuPos.left, width: 240, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', boxShadow: 'var(--shadow)', overflow: 'hidden', zIndex: 150 }}>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-                      {isEnglish ? 'Slash commands: type after "/" and press Enter' : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
-                    </div>
-                    <div style={{ display: 'grid' }}>
-                      {filteredSlashCommands.slice(0, 6).map((command) => (
-                        <button
-                          key={`entry-${command.key}`}
-                          type="button"
-                          onClick={() => replaceSlashToken(command.markdown)}
-                          style={{ textAlign: 'left', padding: '10px 12px', border: 'none', borderTop: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                        >
-                          /{command.key} - {command.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-                <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                  {isEnglish ? 'A timestamp tag will be added automatically. Keep the first line as `## Your Title`.' : '会自动附带时间戳标签。请保持第一行是 `## 标题`。'}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Quick Entry' : '快速记录'}</h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setEntryEditorHeight((current) => Math.max(120, current - 60))}
+                    style={bodyHeightButtonStyle}
+                    title={isEnglish ? 'Shorter' : '减小'}
+                    aria-label={isEnglish ? 'Shorter' : '减小'}
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEntryEditorHeight(isTouchLikeViewport() ? 150 : 180)}
+                    style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
+                    title={isEnglish ? 'Reset height' : '恢复默认高度'}
+                    aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}
+                  >
+                    {isEnglish ? 'Fit' : '默认'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEntryEditorHeight((current) => Math.min(420, current + 60))}
+                    style={bodyHeightButtonStyle}
+                    title={isEnglish ? 'Taller' : '增大'}
+                    aria-label={isEnglish ? 'Taller' : '增大'}
+                  >
+                    +
+                  </button>
                 </div>
+              </div>
+              <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+                  <MarkdownComposer
+                    textareaRef={entryRef}
+                    value={newEntryContent}
+                    onChange={setNewEntryContent}
+                    minHeight={entryEditorHeight}
+                    editorHeight={entryEditorHeight}
+                    onEditorHeightChange={setEntryEditorHeight}
+                    showHeightControls={false}
+                  />
+                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
+                    {isEnglish ? 'A timestamp tag will be added automatically. Keep the first line as `## Your Title`.' : '会自动附带时间戳标签。请保持第一行是 `## 标题`。'}
+                  </div>
                 <IconButton label={isEnglish ? 'Add new entry' : '添加新记录'} icon={<PlusIcon />} onClick={addEntry} active />
               </div>
             </section>
@@ -877,7 +735,7 @@ export default function PageEditorPage() {
                         {copiedAssetName === asset.name ? (isEnglish ? 'Copied' : '已复制') : (isEnglish ? 'Copy' : '复制')}
                       </span>
                     </button>
-                    <button type="button" onClick={() => insertImageMarkdown(`![${asset.name.replace(/\.[^.]+$/i, '')}](${asset.name})`)} title={isEnglish ? 'Insert image link' : '插入图片链接'} aria-label={isEnglish ? 'Insert image link' : '插入图片链接'} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                    <button type="button" onClick={() => insertImageMarkdown(buildAssetMarkdown(asset.name))} title={isEnglish ? 'Insert image link' : '插入图片链接'} aria-label={isEnglish ? 'Insert image link' : '插入图片链接'} style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                         </svg>
@@ -919,7 +777,50 @@ export default function PageEditorPage() {
               <h2 style={{ margin: 0, fontSize: 14 }}>
                 {draft.mode === 'live' ? (isEnglish ? 'Entries' : '记录列表') : (isEnglish ? 'Page Content' : '页面内容')}
               </h2>
-              <SectionToggleButton open={draft.mode === 'live' ? entriesOpen : pageContentOpen} onClick={() => draft.mode === 'live' ? setEntriesOpen((prev) => !prev) : setPageContentOpen((prev) => !prev)} label={(draft.mode === 'live' ? entriesOpen : pageContentOpen) ? (isEnglish ? 'Collapse content section' : '收起内容区域') : (isEnglish ? 'Expand content section' : '展开内容区域')} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                {draft.mode === 'page' ? (
+                  <>
+                    <div
+                      title={isEnglish ? 'Character count' : '字符统计'}
+                      aria-label={isEnglish ? 'Character count' : '字符统计'}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}
+                    >
+                      <TextStatsIcon />
+                      <span>{draft.body.length}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <button
+                        type="button"
+                        onClick={() => setPageEditorHeight((current) => Math.max(180, current - 80))}
+                        style={bodyHeightButtonStyle}
+                        title={isEnglish ? 'Shorter' : '减小'}
+                        aria-label={isEnglish ? 'Shorter' : '减小'}
+                      >
+                        -
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPageEditorHeight(isTouchLikeViewport() ? 380 : 640)}
+                        style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
+                        title={isEnglish ? 'Reset height' : '恢复默认高度'}
+                        aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}
+                      >
+                        {isEnglish ? 'Fit' : '默认'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPageEditorHeight((current) => Math.min(960, current + 80))}
+                        style={bodyHeightButtonStyle}
+                        title={isEnglish ? 'Taller' : '增大'}
+                        aria-label={isEnglish ? 'Taller' : '增大'}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+                <SectionToggleButton open={draft.mode === 'live' ? entriesOpen : pageContentOpen} onClick={() => draft.mode === 'live' ? setEntriesOpen((prev) => !prev) : setPageContentOpen((prev) => !prev)} label={(draft.mode === 'live' ? entriesOpen : pageContentOpen) ? (isEnglish ? 'Collapse content section' : '收起内容区域') : (isEnglish ? 'Expand content section' : '展开内容区域')} />
+              </div>
             </div>
             {draft.mode === 'live' ? (
               entriesOpen ? (
@@ -938,62 +839,23 @@ export default function PageEditorPage() {
                   ))}
                 </div>
               ) : null
-            ) : (
-              pageContentOpen ? (
-                <>
-                  <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                    <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                      {isEnglish ? 'Mobile tip: type `/` in the editor to open Markdown commands near the cursor.' : '手机提示：在正文中输入 `/` 可快速唤起 Markdown 命令。'}
+              ) : (
+                pageContentOpen ? (
+                  <>
+                    <div style={{ marginTop: 14 }}>
+                      <MarkdownComposer
+                        textareaRef={bodyRef}
+                        value={draft.body}
+                        onChange={updateBody}
+                        minHeight={640}
+                        editorHeight={pageEditorHeight}
+                        onEditorHeightChange={setPageEditorHeight}
+                        showHeightControls={false}
+                      />
                     </div>
-                  </div>
-                  <textarea
-                    ref={bodyRef}
-                    value={draft.body}
-                    onChange={(event) => {
-                      const nextValue = event.target.value
-                      const cursor = event.target.selectionStart ?? nextValue.length
-                      updateBody(nextValue)
-                      updateSlashState('body', nextValue, cursor)
-                    }}
-                    onKeyDown={(event) => {
-                      if (!(slashState.open && slashState.target === 'body')) return
-                      if (event.key === 'Escape') {
-                        event.preventDefault()
-                        setSlashState((prev) => ({ ...prev, open: false, query: '', start: 0, end: 0 }))
-                        return
-                      }
-                      if (event.key === 'Enter' || event.key === 'Tab') {
-                        const first = filteredSlashCommands[0]
-                        if (!first) return
-                        event.preventDefault()
-                        replaceSlashToken(first.markdown)
-                      }
-                    }}
-                    rows={12}
-                    style={{ ...input, marginTop: 14, minHeight: 320, resize: 'none', overflow: 'hidden', lineHeight: 1.7 }}
-                  />
-                  {slashState.open && slashState.target === 'body' ? (
-                    <div style={{ position: 'fixed', top: slashMenuPos.top, left: slashMenuPos.left, width: 240, border: '1px solid var(--border)', borderRadius: 12, background: 'var(--card)', boxShadow: 'var(--shadow)', overflow: 'hidden', zIndex: 150 }}>
-                      <div style={{ fontSize: 12, color: 'var(--muted)', padding: '8px 10px', borderBottom: '1px solid var(--border)' }}>
-                        {isEnglish ? 'Slash commands: type after "/" and press Enter' : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
-                      </div>
-                      <div style={{ display: 'grid' }}>
-                        {filteredSlashCommands.slice(0, 6).map((command) => (
-                          <button
-                            key={`body-${command.key}`}
-                            type="button"
-                            onClick={() => replaceSlashToken(command.markdown)}
-                            style={{ textAlign: 'left', padding: '10px 12px', border: 'none', borderTop: '1px solid var(--border)', background: 'var(--card)', color: 'var(--foreground)', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
-                          >
-                            /{command.key} - {command.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-                </>
-              ) : null
-            )}
+                  </>
+                ) : null
+              )}
           </section>
 
           <section style={card}>
@@ -1129,7 +991,7 @@ export default function PageEditorPage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {isEnglish ? 'Copy Name' : '复制标题'}
+                  {isEnglish ? 'Copy Markdown' : '复制 Markdown'}
               </button>
             </div>
 

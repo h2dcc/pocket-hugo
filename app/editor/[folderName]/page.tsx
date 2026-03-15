@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import ImageUploader from '@/components/post/ImageUploader'
+import MarkdownComposer from '@/components/post/MarkdownComposer'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import MarkdownPreview from '@/components/post/MarkdownPreview'
 import ThemeToggle from '@/components/theme/ThemeToggle'
@@ -36,6 +37,10 @@ function createCustomFieldId() {
 
 function getAssetAltText(assetName: string) {
   return assetName.replace(/\.[^.]+$/i, '')
+}
+
+function buildAssetMarkdown(assetName: string) {
+  return `![${getAssetAltText(assetName)}](${assetName})`
 }
 
 function findCoverAsset(draft: PostDraft | null) {
@@ -93,12 +98,27 @@ function PlusIcon() {
   )
 }
 
+function TextStatsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M4 7H14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 12H20" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M4 17H12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function parseEnglishCommaList(value: string) {
   return value
     .replace(/，/g, ',')
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean)
+}
+
+function isTouchLikeViewport() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
 }
 
 function applyFrontmatterPreferencesToDraft(
@@ -159,40 +179,6 @@ function applyFrontmatterPreferencesToDraft(
   }
 }
 
-type SlashCommand = {
-  key: string
-  label: string
-  keywords: string[]
-  markdown: string
-}
-
-type SlashState = {
-  open: boolean
-  query: string
-  start: number
-  end: number
-}
-
-function estimateSlashMenuPosition(
-  textarea: HTMLTextAreaElement,
-  value: string,
-  cursor: number,
-) {
-  const rect = textarea.getBoundingClientRect()
-  const before = value.slice(0, cursor)
-  const lines = before.split('\n')
-  const line = lines[lines.length - 1] || ''
-  const lineHeight = 26
-  const charWidth = 8.2
-
-  const rawLeft = rect.left + 14 + line.length * charWidth
-  const maxLeft = Math.max(rect.left + 12, rect.right - 260)
-  const left = Math.min(rawLeft, maxLeft)
-  const top = Math.max(12, rect.top + 12 + (lines.length - 1) * lineHeight - 10)
-
-  return { top, left }
-}
-
 export default function EditorPage() {
   const { isEnglish } = useLanguage()
   const params = useParams<{ folderName: string }>()
@@ -209,18 +195,12 @@ export default function EditorPage() {
   const [basicInfoOpen, setBasicInfoOpen] = useState(true)
   const [imagesOpen, setImagesOpen] = useState(true)
   const [bodyOpen, setBodyOpen] = useState(true)
+  const [bodyEditorHeight, setBodyEditorHeight] = useState(640)
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
   const [previewAsset, setPreviewAsset] = useState<DraftAsset | null>(null)
   const [copiedAssetName, setCopiedAssetName] = useState('')
   const [categoryInput, setCategoryInput] = useState('')
   const [tagInput, setTagInput] = useState('')
-  const [slashState, setSlashState] = useState<SlashState>({
-    open: false,
-    query: '',
-    start: 0,
-    end: 0,
-  })
-  const [slashMenuPos, setSlashMenuPos] = useState({ top: 0, left: 0 })
 
   const cardStyle: React.CSSProperties = {
     border: '1px solid var(--border)',
@@ -254,9 +234,26 @@ export default function EditorPage() {
     fontWeight: 700,
   }
 
+  const bodyHeightButtonStyle: React.CSSProperties = {
+    minWidth: 36,
+    height: 30,
+    padding: '0 10px',
+    borderRadius: 999,
+    border: '1px solid var(--border)',
+    background: 'var(--card-muted)',
+    color: 'var(--foreground)',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  }
+
   useEffect(() => {
     const loadedSettings = loadSiteSettingsFromStorage()
     setSiteSettings(loadedSettings)
+
+    if (isTouchLikeViewport()) {
+      setBodyEditorHeight(380)
+    }
 
     if (!folderName) return
 
@@ -316,14 +313,6 @@ export default function EditorPage() {
       cancelled = true
     }
   }, [draft, folderName, isEnglish])
-
-  useEffect(() => {
-    const textarea = bodyTextareaRef.current
-    if (!textarea) return
-
-    textarea.style.height = '0px'
-    textarea.style.height = `${Math.max(320, textarea.scrollHeight)}px`
-  }, [draft?.body, activeTab, bodyOpen])
 
   const markdownOutput = useMemo(() => {
     if (!draft) return ''
@@ -591,9 +580,11 @@ export default function EditorPage() {
         prev.body.slice(shouldInsertImageBlock ? insertionStart : selectionEnd)
 
       const nextCursor = insertionStart + insertionText.length
+      const scrollTop = textarea.scrollTop
 
       requestAnimationFrame(() => {
         textarea.focus()
+        textarea.scrollTop = scrollTop
         textarea.setSelectionRange(nextCursor, nextCursor)
       })
 
@@ -606,69 +597,16 @@ export default function EditorPage() {
 
   async function copyAssetName(assetName: string) {
     try {
-      await navigator.clipboard.writeText(assetName)
+      await navigator.clipboard.writeText(buildAssetMarkdown(assetName))
       setCopiedAssetName(assetName)
       setTimeout(() => setCopiedAssetName(''), 1200)
     } catch {
       setStatus(
-        isEnglish ? 'Unable to copy file name on this device' : '当前设备无法复制文件名',
+        isEnglish
+          ? 'Unable to copy image Markdown on this device'
+          : '当前设备无法复制图片 Markdown 链接',
       )
     }
-  }
-
-  function updateSlashStateByText(value: string, cursor: number) {
-    const textarea = bodyTextareaRef.current
-    const textBeforeCursor = value.slice(0, cursor)
-    const slashIndex = textBeforeCursor.lastIndexOf('/')
-    if (slashIndex < 0) {
-      setSlashState({ open: false, query: '', start: 0, end: 0 })
-      return
-    }
-
-    const prefixChar = slashIndex === 0 ? ' ' : textBeforeCursor[slashIndex - 1]
-    const commandText = textBeforeCursor.slice(slashIndex + 1)
-    const isLineBreakInside = commandText.includes('\n')
-    const hasSpaceInside = /\s/.test(commandText)
-    const validPrefix = /\s/.test(prefixChar)
-
-    if (!validPrefix || isLineBreakInside || hasSpaceInside) {
-      setSlashState({ open: false, query: '', start: 0, end: 0 })
-      return
-    }
-
-    setSlashState({
-      open: true,
-      query: commandText.toLowerCase(),
-      start: slashIndex,
-      end: cursor,
-    })
-    if (textarea) {
-      setSlashMenuPos(estimateSlashMenuPosition(textarea, value, cursor))
-    }
-  }
-
-  function replaceSlashToken(markdown: string) {
-    const textarea = bodyTextareaRef.current
-    if (!textarea) return
-
-    setDraft((prev) => {
-      if (!prev) return prev
-      const nextBody =
-        prev.body.slice(0, slashState.start) + markdown + prev.body.slice(slashState.end)
-      const nextCursor = slashState.start + markdown.length
-
-      requestAnimationFrame(() => {
-        textarea.focus()
-        textarea.setSelectionRange(nextCursor, nextCursor)
-      })
-
-      return {
-        ...prev,
-        body: nextBody,
-      }
-    })
-
-    setSlashState({ open: false, query: '', start: 0, end: 0 })
   }
 
   function handleAssetUploaded(asset: DraftAsset) {
@@ -776,74 +714,6 @@ export default function EditorPage() {
   function setAsCover(assetName: string) {
     updateFrontmatter('image', assetName)
   }
-
-  const slashCommands: SlashCommand[] = [
-    {
-      key: 'h2',
-      label: isEnglish ? 'Heading' : '标题',
-      keywords: ['h2', 'heading', 'title', 'biaoti'],
-      markdown: isEnglish ? '## Section Title' : '## 小节标题',
-    },
-    {
-      key: 'bold',
-      label: isEnglish ? 'Bold' : '加粗',
-      keywords: ['bold', 'strong', 'jiacu'],
-      markdown: isEnglish ? '**bold text**' : '**加粗文字**',
-    },
-    {
-      key: 'italic',
-      label: isEnglish ? 'Italic' : '斜体',
-      keywords: ['italic', 'xieti'],
-      markdown: isEnglish ? '*italic text*' : '*斜体文字*',
-    },
-    {
-      key: 'link',
-      label: isEnglish ? 'Link' : '链接',
-      keywords: ['link', 'url', 'lianjie'],
-      markdown: isEnglish ? '[link text](https://example.com)' : '[链接文字](https://example.com)',
-    },
-    {
-      key: 'code',
-      label: isEnglish ? 'Code' : '行内代码',
-      keywords: ['code', 'inline', 'daima'],
-      markdown: isEnglish ? '`code`' : '`代码`',
-    },
-    {
-      key: 'codeblock',
-      label: isEnglish ? 'Code Block' : '代码块',
-      keywords: ['codeblock', 'block', 'daimakuai'],
-      markdown: isEnglish ? '\n```ts\nconst example = true\n```\n' : '\n```ts\nconst 示例 = true\n```\n',
-    },
-    {
-      key: 'quote',
-      label: isEnglish ? 'Quote' : '引用',
-      keywords: ['quote', 'yinyong'],
-      markdown: isEnglish ? '> Quoted text' : '> 引用内容',
-    },
-    {
-      key: 'list',
-      label: isEnglish ? 'List' : '列表',
-      keywords: ['list', 'ul', 'liebiao'],
-      markdown: isEnglish ? '- List item' : '- 列表项',
-    },
-    {
-      key: 'table',
-      label: isEnglish ? 'Table' : '表格',
-      keywords: ['table', 'biaoge'],
-      markdown: isEnglish
-        ? '\n| Column 1 | Column 2 |\n| --- | --- |\n| Value A | Value B |\n'
-        : '\n| 列 1 | 列 2 |\n| --- | --- |\n| 内容 A | 内容 B |\n',
-    },
-  ]
-
-  const filteredSlashCommands = slashState.query
-    ? slashCommands.filter((command) =>
-        [command.label, ...command.keywords]
-          .join(' ')
-          .toLowerCase()
-          .includes(slashState.query),
-      )
-    : slashCommands
 
   if (checkingAuth || !draft) {
     return (
@@ -1536,9 +1406,7 @@ export default function EditorPage() {
 
                           <button
                             type="button"
-                            onClick={() =>
-                              insertMarkdownAtCursor(`![${getAssetAltText(asset.name)}](${asset.name})`)
-                            }
+                              onClick={() => insertMarkdownAtCursor(buildAssetMarkdown(asset.name))}
                             style={{
                               width: 34,
                               height: 34,
@@ -1607,8 +1475,42 @@ export default function EditorPage() {
             >
               <h2 style={sectionTitleStyle}>{isEnglish ? 'Body' : '正文'}</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <div style={{ fontSize: 12, color: 'var(--muted)' }}>
-                  {draft.body.length} {isEnglish ? 'characters' : '字符'}
+                <div
+                  title={isEnglish ? 'Character count' : '字符统计'}
+                  aria-label={isEnglish ? 'Character count' : '字符统计'}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--muted)' }}
+                >
+                  <TextStatsIcon />
+                  <span>{draft.body.length}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => setBodyEditorHeight((current) => Math.max(180, current - 80))}
+                    style={bodyHeightButtonStyle}
+                    title={isEnglish ? 'Shorter' : '减小'}
+                    aria-label={isEnglish ? 'Shorter' : '减小'}
+                  >
+                    -
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBodyEditorHeight(isTouchLikeViewport() ? 380 : 640)}
+                    style={{ ...bodyHeightButtonStyle, minWidth: 54 }}
+                    title={isEnglish ? 'Reset height' : '恢复默认高度'}
+                    aria-label={isEnglish ? 'Reset height' : '恢复默认高度'}
+                  >
+                    {isEnglish ? 'Fit' : '默认'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBodyEditorHeight((current) => Math.min(960, current + 80))}
+                    style={bodyHeightButtonStyle}
+                    title={isEnglish ? 'Taller' : '增大'}
+                    aria-label={isEnglish ? 'Taller' : '增大'}
+                  >
+                    +
+                  </button>
                 </div>
                 <SectionToggleButton open={bodyOpen} onClick={() => setBodyOpen((prev) => !prev)} label={bodyOpen ? (isEnglish ? 'Collapse body section' : '收起正文区域') : (isEnglish ? 'Expand body section' : '展开正文区域')} />
               </div>
@@ -1616,109 +1518,25 @@ export default function EditorPage() {
 
             {bodyOpen ? (
               <>
-                <div style={{ marginTop: 14, display: 'grid', gap: 10 }}>
-                  <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6 }}>
-                    {isEnglish
-                      ? 'Mobile tip: type `/` in the editor to open Markdown commands near the cursor.'
-                      : '手机提示：在正文中输入 `/` 可快速唤起 Markdown 命令。'}
-                  </div>
-                </div>
-
-                <textarea
-                  ref={bodyTextareaRef}
-                  value={draft.body}
-                  onChange={(e) => {
-                    const nextValue = e.target.value
-                    const cursor = e.target.selectionStart ?? nextValue.length
-                    setDraft((prev) => {
-                      if (!prev) return prev
-                      return {
-                        ...prev,
-                        body: nextValue,
-                      }
-                    })
-                    updateSlashStateByText(nextValue, cursor)
-                  }}
-                  onKeyDown={(e) => {
-                    if (!slashState.open) return
-                    if (e.key === 'Escape') {
-                      e.preventDefault()
-                      setSlashState({ open: false, query: '', start: 0, end: 0 })
-                      return
-                    }
-                    if (e.key === 'Enter' || e.key === 'Tab') {
-                      const first = filteredSlashCommands[0]
-                      if (!first) return
-                      e.preventDefault()
-                      replaceSlashToken(first.markdown)
-                    }
-                  }}
-                  rows={12}
-                  style={{
-                    ...inputStyle,
-                    marginTop: 14,
-                    minHeight: 320,
-                    resize: 'none',
-                    overflow: 'hidden',
-                    lineHeight: 1.6,
-                  }}
-                />
-                {slashState.open ? (
-                  <div
-                    style={{
-                      position: 'fixed',
-                      top: slashMenuPos.top,
-                      left: slashMenuPos.left,
-                      width: 240,
-                      border: '1px solid var(--border)',
-                      borderRadius: 12,
-                      background: 'var(--card)',
-                      boxShadow: 'var(--shadow)',
-                      overflow: 'hidden',
-                      zIndex: 150,
+                <div style={{ marginTop: 14 }}>
+                  <MarkdownComposer
+                    textareaRef={bodyTextareaRef}
+                    value={draft.body}
+                    onChange={(nextValue) => {
+                      setDraft((prev) => {
+                        if (!prev) return prev
+                        return {
+                          ...prev,
+                          body: nextValue,
+                        }
+                      })
                     }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: 'var(--muted)',
-                        padding: '8px 10px',
-                        borderBottom: '1px solid var(--border)',
-                      }}
-                    >
-                      {isEnglish
-                        ? 'Slash commands: type after "/" and press Enter'
-                        : 'Slash 命令：输入 "/" 后继续输入关键词，按 Enter 选择'}
-                    </div>
-                    <div style={{ display: 'grid' }}>
-                      {filteredSlashCommands.slice(0, 6).map((command) => (
-                        <button
-                          key={command.key}
-                          type="button"
-                          onClick={() => replaceSlashToken(command.markdown)}
-                          style={{
-                            textAlign: 'left',
-                            padding: '10px 12px',
-                            border: 'none',
-                            borderTop: '1px solid var(--border)',
-                            background: 'var(--card)',
-                            color: 'var(--foreground)',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            fontWeight: 600,
-                          }}
-                        >
-                          /{command.key} - {command.label}
-                        </button>
-                      ))}
-                      {!filteredSlashCommands.length ? (
-                        <div style={{ padding: '10px 12px', fontSize: 13, color: 'var(--muted)' }}>
-                          {isEnglish ? 'No matching command.' : '没有匹配的命令。'}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                ) : null}
+                    minHeight={640}
+                    editorHeight={bodyEditorHeight}
+                    onEditorHeightChange={setBodyEditorHeight}
+                    showHeightControls={false}
+                  />
+                </div>
               </>
             ) : null}
             </section>
@@ -1943,7 +1761,7 @@ export default function EditorPage() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {isEnglish ? 'Copy Name' : '复制标题'}
+                  {isEnglish ? 'Copy Markdown' : '复制 Markdown'}
               </button>
             </div>
 
