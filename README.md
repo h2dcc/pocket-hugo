@@ -251,6 +251,12 @@ npm run build:cloudflare
 - Use a strong `APP_SESSION_SECRET`
 - Use production domains in OAuth callback URLs
 
-## License
+## License and Notices
 
-MIT
+PocketHugo is released under the MIT License.
+
+PocketHugo is an independent project built with technologies including Next.js, React, TypeScript, GitHub APIs, and OpenNext for Cloudflare Workers. It is designed primarily for Hugo-compatible publishing workflows, while remaining compatible with some Hexo, Astro, and similar frontmatter-based Markdown workflows.
+
+PocketHugo is not affiliated with or endorsed by Hugo, Vercel, GitHub, or Cloudflare.
+
+Third-party libraries, frameworks, and related assets remain under their own respective licenses.

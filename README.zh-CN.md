@@ -255,6 +255,12 @@ npm run build:cloudflare
 - 使用足够强的 `APP_SESSION_SECRET`
 - OAuth 回调地址务必使用正式域名
 
-## License
+## 许可证与说明
 
-MIT
+PocketHugo 采用 MIT License 发布。
+
+PocketHugo 是一个独立项目，基于 Next.js、React、TypeScript、GitHub API 以及面向 Cloudflare Workers 的 OpenNext 等技术构建，主要面向 Hugo 兼容发布工作流，同时也可适配部分 Hexo、Astro 等基于 frontmatter 的 Markdown 工作流。
+
+PocketHugo 与 Hugo、Vercel、GitHub、Cloudflare 等项目或公司不存在隶属或背书关系。
+
+项目所使用的第三方库、框架及相关资产，仍分别遵循其各自许可证。

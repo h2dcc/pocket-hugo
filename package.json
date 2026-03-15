@@ -1,7 +1,8 @@
 {
   "name": "hugoweb",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A Hugo publishing tool with a web frontend",
+  "license": "MIT",
   "main": "index.js",
   "engines": {
     "node": "^20.9.0 || ^22.0.0"

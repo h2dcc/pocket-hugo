@@ -318,8 +318,8 @@ export default function GuidePage() {
             </p>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8, fontSize: 14 }}>
               {isEnglish
-                ? 'Version 1.0.1 - Updated for post structure modes'
-                : '版本 1.0.1 - 已更新文章结构模式说明'}
+                ? 'Version 1.0.2 - Updated for post structure modes'
+                : '版本 1.0.2 - 已更新文章结构模式说明'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
