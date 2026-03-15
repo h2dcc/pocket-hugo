@@ -9,9 +9,9 @@
 
 PocketHugo is a mobile-first Hugo publishing app for GitHub-hosted content.
 
-- GitHub repo: `https://github.com/h2dcc/pocket-hugo`
-- Production (Vercel): `https://pockethugo.lawtee.com`
-- Production (Cloudflare Workers): `https://pocket-hugo.rpwi.workers.dev`
+- GitHub repo: [https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
+- Production (Vercel): [https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
+- Production (Cloudflare Workers): [https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
 
 ## Why PocketHugo
 
@@ -200,16 +200,9 @@ This repo already includes:
 Deploy commands:
 
 ```bash
-npm install
 npm run build:cloudflare
-npm run deploy:cloudflare
 ```
 
-Optional local preview:
-
-```bash
-npm run preview:cloudflare
-```
 
 ## Security Notes
 

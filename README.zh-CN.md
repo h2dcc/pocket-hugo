@@ -9,9 +9,9 @@
 
 PocketHugo 是一个面向手机优先的 Hugo 发布工具，适用于把内容托管在 GitHub 的用户。
 
-- 项目仓库：`https://github.com/h2dcc/pocket-hugo`
-- 线上地址（Vercel）：`https://pockethugo.lawtee.com`
-- 线上地址（Cloudflare Workers）：`https://pocket-hugo.rpwi.workers.dev`
+- 项目仓库：[https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
+- 线上地址（Vercel）：[https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
+- 线上地址（Cloudflare Workers）：[https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
 
 ## 项目优势
 
@@ -200,16 +200,9 @@ npm run build:vercel
 部署命令：
 
 ```bash
-npm install
 npm run build:cloudflare
-npm run deploy:cloudflare
 ```
 
-本地预览（可选）：
-
-```bash
-npm run preview:cloudflare
-```
 
 ## 安全建议
 
