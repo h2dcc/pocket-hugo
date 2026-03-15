@@ -213,6 +213,19 @@ select {
   height: auto;
 }
 
+.guide-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 240px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.guide-toc {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+}
+
 @media (min-width: 768px) {
   html {
     font-size: 13px;
@@ -220,5 +233,15 @@ select {
 
   body {
     font-size: 0.88rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .guide-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guide-toc {
+    position: static;
   }
 }

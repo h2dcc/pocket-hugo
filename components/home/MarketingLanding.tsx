@@ -321,6 +321,22 @@ export default function MarketingLanding() {
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <LanguageToggle />
                 <Link
+                  href="/guide"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 42,
+                    padding: '0 16px',
+                    borderRadius: 999,
+                    border: '1px solid var(--border)',
+                    background: 'rgba(255,255,255,0.6)',
+                    fontWeight: 600,
+                  }}
+                >
+                  {isEnglish ? 'Guide' : '使用指南'}
+                </Link>
+                <Link
                   href="/app"
                   style={{
                     display: 'inline-flex',
@@ -464,6 +480,22 @@ export default function MarketingLanding() {
           </div>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <Link
+              href="/guide"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 44,
+                padding: '0 18px',
+                borderRadius: 999,
+                border: '1px solid var(--border)',
+                background: 'var(--card-muted)',
+                fontWeight: 600,
+              }}
+            >
+              {isEnglish ? 'Read the Guide' : '阅读指南'}
+            </Link>
             <Link
               href="/app"
               style={{
