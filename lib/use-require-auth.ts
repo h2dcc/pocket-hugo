@@ -20,7 +20,7 @@ export function useRequireAuth(fromPath: string) {
         const response = await fetch('/api/auth/session', { cache: 'no-store' })
         const result = (await response.json()) as SessionResponse
         if (!response.ok || !result.ok || !result.authenticated) {
-          const target = `/?auth=required&from=${encodeURIComponent(fromPath)}`
+          const target = `/app?auth=required&from=${encodeURIComponent(fromPath)}`
           router.replace(target)
           return
         }
@@ -28,7 +28,7 @@ export function useRequireAuth(fromPath: string) {
           setCheckingAuth(false)
         }
       } catch {
-        const target = `/?auth=required&from=${encodeURIComponent(fromPath)}`
+        const target = `/app?auth=required&from=${encodeURIComponent(fromPath)}`
         router.replace(target)
       }
     }

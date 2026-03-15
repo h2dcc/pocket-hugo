@@ -157,7 +157,7 @@ function PagePublishResultContent() {
             gap: 12,
           }}
         >
-          <Link href="/" style={actionStyle}>
+          <Link href="/app" style={actionStyle}>
             {isEnglish ? 'Home' : '返回首页'}
           </Link>
           <Link
