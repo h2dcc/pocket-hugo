@@ -7,14 +7,21 @@
 ![Pocket-Hugo-Desktop](pockethugodesktop.webp)
 
 PocketHugo is a browser-first publishing app for GitHub-hosted Markdown content, built around Hugo workflows and optimized for desktop browsers while remaining usable on tablet and phone.
+It now includes a higher-efficiency WebP upload pipeline powered by `@jsquash/webp` (WASM), with browser-safe fallbacks for mobile devices that cannot complete the WASM path.
 
 Pocket publishing for Hugo across desktop, tablet, and phone.
 
 - GitHub repo: [https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
 - Production landing: [https://leftn.com](https://leftn.com)
 - Production app entry: [https://leftn.com/app](https://leftn.com/app)
-- Production (Vercel): [https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
-- Production (Cloudflare Workers): [https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
+- Demo (Vercel): [https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
+- Demo (Cloudflare Workers): [https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
+
+Recommended public entry:
+
+- Prefer `https://leftn.com` and `https://leftn.com/app` when sharing or using the hosted app.
+- That domain is bound to the Cloudflare Workers deployment and uses stricter SSL handling, which is the preferred public endpoint for reducing avoidable transport-layer risk.
+- Project author: [Lawtee](https://lawtee.com)
 
 ## What PocketHugo Supports
 
@@ -83,7 +90,9 @@ PocketHugo reduces Git friction while preserving a Hugo-friendly publishing stru
 - write and edit in desktop, tablet, or mobile browser
 - choose among three Hugo-compatible post structure modes
 - compress, convert, and auto-name images during upload
+- use higher-efficiency WebP compression in the browser with WASM-backed encoding
 - keep local drafts in the browser and reopen them later
+- optionally auto-commit post drafts back to GitHub with `draft: true`
 - reload already-published posts from GitHub and edit again
 - publish Markdown and related assets back to GitHub in one batch commit
 
@@ -107,6 +116,7 @@ PocketHugo reduces Git friction while preserving a Hugo-friendly publishing stru
 ### Image workflow
 
 - optional auto conversion and compression
+- higher-efficiency WebP encoding via `@jsquash/webp` with mobile-safe fallback paths
 - configurable max width and quality
 - optional auto file naming (`1.webp`, `2.webp`, ...)
 - batch upload up to 9 images
@@ -125,6 +135,7 @@ Note:
 - slash command helper (`/`) in the body editor
 - Markdown preview
 - autosave plus manual save
+- optional timed auto-commit of post drafts to GitHub
 - light/dark theme and Chinese/English switch
 
 ### Page editor
@@ -149,10 +160,19 @@ PocketHugo is local-first:
 - React + TypeScript
 - GitHub OAuth + GitHub APIs
 - OpenNext adapter for Cloudflare Workers
+- `@jsquash/webp` for higher-efficiency in-browser WebP encoding
+
+## Key Runtime Dependencies
+
+- `next` and `react` for the browser-first app shell
+- `gray-matter` for Markdown frontmatter parsing
+- `react-markdown` for in-app preview rendering
+- `@jsquash/webp` for WASM-backed WebP compression in the browser
+- GitHub OAuth + GitHub REST APIs for repository access and publishing
 
 ## Requirements
 
-- Node.js `22 LTS` recommended
+- Node.js `22+`
 - npm
 
 ## Local Development
@@ -223,6 +243,8 @@ GITHUB_CLIENT_ID=your-workers-oauth-client-id
 GITHUB_CLIENT_SECRET=your-workers-oauth-client-secret
 LANDING_PAGE_HOSTS=leftn.com,www.leftn.com
 ```
+
+For production use, `leftn.com` is the recommended public domain because it is the Workers-bound entry with stricter SSL handling enabled.
 
 ### Landing page behavior
 

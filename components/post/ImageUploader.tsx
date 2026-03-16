@@ -101,12 +101,16 @@ export default function ImageUploader({
           maxWidth: settings.imageMaxWidth,
           quality: settings.imageQuality,
         })
+        const finalAsset = {
+          ...asset,
+          name: ensureUniqueAssetName(asset.name, workingAssets),
+        }
 
-        workingAssets.push(asset)
-        onUploaded(asset)
+        workingAssets.push(finalAsset)
+        onUploaded(finalAsset)
 
-        const altText = asset.name.replace(/\.[^.]+$/i, '')
-        markdowns.push(`![${altText}](${asset.name})`)
+        const altText = finalAsset.name.replace(/\.[^.]+$/i, '')
+        markdowns.push(`![${altText}](${finalAsset.name})`)
 
         // Process files sequentially to keep peak memory usage lower on iPhone and other mobile browsers.
         await waitForNextTurn()

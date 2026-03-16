@@ -69,8 +69,8 @@ const featureCards = [
     titleEn: 'Image Compression',
     titleZh: '图片压缩与命名',
     bodyEn:
-      'Compress, convert, and auto-name images during upload to reduce repository storage and site build overhead.',
-    bodyZh: '上传图片时可以自动压缩、转换和命名，减少网站仓库存储和构建负担。',
+      'Compress, convert, and auto-name images during upload with a higher-efficiency WebP pipeline, reducing repository storage and site build overhead.',
+    bodyZh: '上传图片时可通过更高效的 WebP 压缩链路自动压缩、转换和命名，减少网站仓库存储和构建负担。',
     icon: (
       <>
         <rect
@@ -432,8 +432,8 @@ export default function MarketingLanding() {
                 }}
               >
                 {isEnglish
-                  ? 'Supports three Hugo-compatible content structures, while combining GitHub publishing, local drafts, image handling, and page editing into one browser tool with a stronger desktop experience and solid mobile usability.'
-                  : '围绕 3 种 Hugo 兼容内容结构，把 GitHub 发布、本地草稿、图片处理和页面编辑整合到一个桌面体验更强、同时兼顾手机可用性的浏览器工具里。'}
+                  ? 'Supports three Hugo-compatible content structures, while combining GitHub publishing, local drafts, higher-efficiency WebP image handling, and page editing into one browser tool with a stronger desktop experience and solid mobile usability.'
+                  : '围绕 3 种 Hugo 兼容内容结构，把 GitHub 发布、本地草稿、更高效的 WebP 图片处理和页面编辑整合到一个桌面体验更强、同时兼顾手机可用性的浏览器工具里。'}
               </p>
             </div>
           </div>

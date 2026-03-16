@@ -13,8 +13,8 @@ Pocket publishing for Hugo across desktop, tablet, and phone.
 - GitHub 仓库：[https://github.com/h2dcc/pocket-hugo](https://github.com/h2dcc/pocket-hugo)
 - 主域名介绍页：[https://leftn.com](https://leftn.com)
 - 应用入口：[https://leftn.com/app](https://leftn.com/app)
-- 线上地址（Vercel）：[https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
-- 线上地址（Cloudflare Workers）：[https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
+- 演示地址（Vercel）：[https://pockethugo.lawtee.com](https://pockethugo.lawtee.com)
+- 演示地址（Cloudflare Workers）：[https://pocket-hugo.rpwi.workers.dev](https://pocket-hugo.rpwi.workers.dev)
 
 ## 当前支持的内容结构
 
@@ -156,7 +156,7 @@ PocketHugo 采用本地优先思路：
 
 ## 环境要求
 
-- 推荐 Node.js `22 LTS`
+- 推荐 Node.js `22+`
 - npm
 
 ## 本地开发

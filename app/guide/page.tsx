@@ -62,6 +62,7 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
       title: 'Where to Start',
       body: [
         'Open the landing page at `https://leftn.com`, then enter the app from `https://leftn.com/app`.',
+        'That `leftn.com` entry is also the recommended public domain because it is bound to the Workers deployment and uses stricter SSL handling.',
         'After signing in with GitHub, configure your repository, posts path, page editor path, and publishing preferences on the home screen.',
       ],
       images: ['where-to-start.webp'],
@@ -104,6 +105,7 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
       title: 'Publishing Preferences',
       body: [
         'Publishing preferences control post structure mode, image conversion, image naming, timezone handling, category presets, and frontmatter field mapping.',
+        'Image conversion now uses a higher-efficiency WebP pipeline with WASM-backed encoding where supported, and browser-safe fallbacks when not.',
         'If you want PocketHugo to match your existing Hugo project conventions, this is one of the most important sections to configure carefully.',
       ],
       images: ['preferences-setting.webp'],
@@ -120,6 +122,7 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
       title: 'Image Workflow',
       body: [
         'PocketHugo supports image upload, compression, conversion, auto naming, preview, copy filename, insert Markdown, cover selection, and deletion.',
+        'The current upload pipeline prioritizes higher-efficiency WebP compression in the browser, helping reduce oversized screenshot uploads from phones and tablets.',
         'Batch upload supports up to 9 images. They are processed one by one to reduce peak memory pressure on iPhone and other mobile browsers, then inserted into the editor in one Markdown block.',
         'This image workflow is designed for bundle-style content where Markdown and assets stay together.',
       ],
@@ -208,6 +211,7 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
       title: '发布偏好',
       body: [
         '发布偏好会控制文章结构模式、图片转换、图片命名、时区、分类预设和 frontmatter 字段映射等行为。',
+        '图片转换现在会优先使用更高效的 WebP 压缩链路，在支持时走 WASM 编码，不支持时再回退到浏览器安全方案。',
         '如果你希望 PocketHugo 尽量贴合你现有的 Hugo 项目习惯，这里是最值得认真配置的区域。',
       ],
       images: ['preferences-setting.webp'],
@@ -224,6 +228,7 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
       title: '图片工作流',
       body: [
         'PocketHugo 支持图片上传、压缩、转换、自动命名、预览、复制文件名、插入 Markdown、设为封面和删除。',
+        '当前上传链路会优先使用更高效的 WebP 压缩方案，尤其适合降低手机截图这类大图的体积。',
         '现在支持一次最多批量上传 9 张图片。图片会逐张处理，以降低 iPhone 等移动端浏览器的峰值内存压力，然后在最后一次性插入 Markdown。',
         '这套图片工作流主要面向 Markdown 和资源文件放在一起的 bundle 结构。',
       ],
@@ -318,8 +323,13 @@ export default function GuidePage() {
             </p>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8, fontSize: 14 }}>
               {isEnglish
-                ? 'Version 1.0.2 - Updated for post structure modes'
-                : '版本 1.0.2 - 已更新文章结构模式说明'}
+                ? 'Version 1.0.3 - Auto-commit, remote preview recovery, and higher-efficiency WebP compression'
+                : '版本 1.0.3 - 自动提交、远程预览恢复与更高效的 WebP 压缩'}
+            </p>
+            <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8, fontSize: 13 }}>
+              {isEnglish
+                ? 'Project author: Lawtee - https://lawtee.com'
+                : '项目作者：Lawtee - https://lawtee.com'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>

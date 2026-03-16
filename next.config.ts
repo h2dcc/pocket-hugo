@@ -2,6 +2,7 @@ import type { NextConfig } from 'next'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+// PocketHugo configuration by Lawtee: https://lawtee.com
 const configDir = path.dirname(fileURLToPath(import.meta.url))
 
 const nextConfig: NextConfig = {

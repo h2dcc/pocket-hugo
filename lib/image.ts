@@ -2,6 +2,10 @@ import { DEFAULT_MAX_IMAGE_WIDTH, DEFAULT_WEBP_QUALITY } from './constants'
 import { sanitizeAssetName } from './naming'
 import type { DraftAsset } from './types'
 
+let webpEncodePromise: Promise<
+  (data: ImageData, options?: { quality?: number; alpha_quality?: number; method?: number }) => Promise<ArrayBuffer>
+> | null = null
+
 function loadImage(file: File): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file)
@@ -37,11 +41,67 @@ function canvasToBlob(
   })
 }
 
+function extensionForMimeType(mimeType: string) {
+  if (mimeType === 'image/webp') return '.webp'
+  if (mimeType === 'image/jpeg') return '.jpg'
+  if (mimeType === 'image/png') return '.png'
+  return ''
+}
+
+function replaceAssetExtension(assetName: string, mimeType: string) {
+  const extension = extensionForMimeType(mimeType)
+  if (!extension) return sanitizeAssetName(assetName)
+  return sanitizeAssetName(assetName.replace(/\.[^.]+$/i, extension))
+}
+
+function canvasHasTransparency(ctx: CanvasRenderingContext2D, width: number, height: number) {
+  const { data } = ctx.getImageData(0, 0, width, height)
+
+  for (let index = 3; index < data.length; index += 4) {
+    if (data[index] !== 255) {
+      return true
+    }
+  }
+
+  return false
+}
+
+async function getWebpEncoder() {
+  if (!webpEncodePromise) {
+    webpEncodePromise = import('@jsquash/webp')
+      .then((module) => module.encode)
+      .catch((error) => {
+        webpEncodePromise = null
+        throw error
+      })
+  }
+
+  return webpEncodePromise
+}
+
+async function encodeCanvasToWebpWithJsquash(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  quality: number,
+) {
+  const encode = await getWebpEncoder()
+  const imageData = ctx.getImageData(0, 0, width, height)
+  const qualityPercent = Math.max(1, Math.min(100, Math.round(quality * 100)))
+  const buffer = await encode(imageData, {
+    quality: qualityPercent,
+    alpha_quality: qualityPercent,
+    method: 6,
+  })
+
+  return new Blob([buffer], { type: 'image/webp' })
+}
+
 export async function compressImageToWebp(
   file: File,
   maxWidth: number = DEFAULT_MAX_IMAGE_WIDTH,
   quality: number = DEFAULT_WEBP_QUALITY,
-): Promise<Blob> {
+): Promise<{ blob: Blob; mimeType: string }> {
   const img = await loadImage(file)
 
   const targetWidth = Math.min(img.width, maxWidth)
@@ -58,7 +118,40 @@ export async function compressImageToWebp(
 
   ctx.drawImage(img, 0, 0, targetWidth, targetHeight)
 
-  return canvasToBlob(canvas, 'image/webp', quality)
+  try {
+    const webpBlob = await encodeCanvasToWebpWithJsquash(ctx, targetWidth, targetHeight, quality)
+    if (webpBlob.size > 0 && webpBlob.type === 'image/webp') {
+      return {
+        blob: webpBlob,
+        mimeType: 'image/webp',
+      }
+    }
+  } catch {
+    // Fall back to browser-native encoders if the wasm codec cannot load.
+  }
+
+  const webpBlob = await canvasToBlob(canvas, 'image/webp', quality)
+  if (webpBlob.type === 'image/webp') {
+    return {
+      blob: webpBlob,
+      mimeType: 'image/webp',
+    }
+  }
+
+  if (!canvasHasTransparency(ctx, targetWidth, targetHeight)) {
+    const jpegBlob = await canvasToBlob(canvas, 'image/jpeg', quality)
+    if (jpegBlob.type === 'image/jpeg') {
+      return {
+        blob: jpegBlob,
+        mimeType: 'image/jpeg',
+      }
+    }
+  }
+
+  return {
+    blob: webpBlob,
+    mimeType: webpBlob.type || 'image/png',
+  }
 }
 
 export function blobToBase64(blob: Blob): Promise<string> {
@@ -122,17 +215,17 @@ export async function createDraftAssetFromImage(
     }
   }
 
-  const webpBlob = await compressImageToWebp(
+  const converted = await compressImageToWebp(
     file,
     options?.maxWidth ?? DEFAULT_MAX_IMAGE_WIDTH,
     options?.quality ?? DEFAULT_WEBP_QUALITY,
   )
-  const contentBase64 = await blobToBase64(webpBlob)
-  const previewUrl = base64ToDataUrl(contentBase64, 'image/webp')
+  const contentBase64 = await blobToBase64(converted.blob)
+  const previewUrl = base64ToDataUrl(contentBase64, converted.mimeType)
 
   return {
-    name: sanitizeAssetName(assetName.replace(/\.[^.]+$/i, '.webp')),
-    mimeType: 'image/webp',
+    name: replaceAssetExtension(assetName, converted.mimeType),
+    mimeType: converted.mimeType,
     contentBase64,
     previewUrl,
   }

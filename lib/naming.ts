@@ -4,7 +4,7 @@ export function buildFolderName(datePrefix: string, slugSuffix: string) {
 
 export function nextImageNameFromAssets(assets: Array<{ name: string }>) {
   const maxNumber = assets.reduce((max, asset) => {
-    const match = asset.name.match(/^(\d+)\.webp$/i)
+    const match = asset.name.match(/^(\d+)\.(?:webp|jpg|jpeg|png|gif|avif)$/i)
     if (!match) return max
 
     const num = Number(match[1])

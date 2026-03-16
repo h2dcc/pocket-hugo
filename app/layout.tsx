@@ -3,6 +3,7 @@ import { LANGUAGE_STORAGE_KEY } from '@/lib/language'
 import { THEME_STORAGE_KEY } from '@/lib/theme'
 import './globals.css'
 
+// Project metadata maintained by Lawtee: https://lawtee.com
 const appUrl = process.env.APP_URL || 'http://localhost:3000'
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
     default: 'PocketHugo',
     template: '%s | PocketHugo',
   },
-  description: 'Write, manage, and publish Hugo posts from your phone or browser.',
+  description: 'Write, manage, and publish Hugo posts from your phone or browser, with higher-efficiency WebP compression and safer draft recovery.',
   applicationName: 'PocketHugo',
   keywords: [
     'Hugo',
@@ -21,9 +22,9 @@ export const metadata: Metadata = {
     'Hugo CMS',
     'page bundle',
   ],
-  authors: [{ name: 'PocketHugo' }],
-  creator: 'PocketHugo',
-  publisher: 'PocketHugo',
+  authors: [{ name: 'Lawtee', url: 'https://lawtee.com' }],
+  creator: 'Lawtee',
+  publisher: 'Lawtee',
   category: 'technology',
   alternates: {
     canonical: '/',
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     url: '/',
     siteName: 'PocketHugo',
     title: 'PocketHugo',
-    description: 'Write, manage, and publish Hugo posts from your phone or browser.',
+    description: 'Write, manage, and publish Hugo posts from your phone or browser, with higher-efficiency WebP compression and safer draft recovery.',
     images: [
       {
         url: '/icon.svg',
@@ -50,7 +51,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary',
     title: 'PocketHugo',
-    description: 'Write, manage, and publish Hugo posts from your phone or browser.',
+    description: 'Write, manage, and publish Hugo posts from your phone or browser, with higher-efficiency WebP compression and safer draft recovery.',
     images: ['/icon.svg'],
   },
   icons: {
