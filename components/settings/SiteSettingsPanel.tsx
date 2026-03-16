@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import {
+  AUTO_COMMIT_INTERVAL_OPTIONS,
   DEFAULT_SITE_SETTINGS,
   loadSiteSettingsFromStorage,
   saveSiteSettingsToStorage,
@@ -591,6 +592,52 @@ export default function SiteSettingsPanel({ onSaved }: Props) {
               {isEnglish ? 'No preset categories yet.' : '还没有固定分类。'}
             </div>
           )}
+        </div>
+      </section>
+
+      <section style={{ display: 'grid', gap: 10, padding: 14, borderRadius: 16, border: '1px solid var(--border)', background: 'var(--card-muted)' }}>
+        <div style={{ display: 'grid', gap: 4 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>
+            {isEnglish ? '7. Auto Commit to GitHub' : '7. 自动提交到 GitHub'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish
+              ? 'This adds a GitHub draft backup on top of the existing local auto-save. Auto commits always write `draft: true`, only update Markdown, only upload newly added local images, and never delete remote assets that already exist in the repository.'
+              : '这个功能会在现有“自动保存到本地”之外，再额外备份一份到 GitHub。自动提交会强制写入 `draft: true`，只更新 Markdown，只上传新增的本地图片，不会删除仓库里原有的远程资源。'}
+          </div>
+          <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55 }}>
+            {isEnglish
+              ? 'Recommended default is every 5 minutes. The minimum supported interval is 3 minutes, and the built-in options start from 5 minutes to avoid overly frequent commits on mobile.'
+              : '推荐默认值为每 5 分钟一次。系统支持的最小间隔是 3 分钟，内置选项从 5 分钟开始，避免手机端提交过于频繁。'}
+          </div>
+        </div>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {AUTO_COMMIT_INTERVAL_OPTIONS.map((minutes) => {
+            const label = minutes === 0
+              ? (isEnglish ? 'Disabled' : '关闭')
+              : minutes === 5
+                ? (isEnglish ? 'Every 5 minutes' : '每 5 分钟')
+                : minutes === 10
+                  ? (isEnglish ? 'Every 10 minutes' : '每 10 分钟')
+                  : (isEnglish ? 'Every 15 minutes' : '每 15 分钟')
+            const description = minutes === 0
+              ? (isEnglish ? 'Keep the current behavior: local auto-save only.' : '保持当前逻辑：仅自动保存到本地。')
+              : minutes === 5
+                ? (isEnglish ? 'Recommended. Balanced protection and commit frequency.' : '推荐。保护力度和提交频率比较均衡。')
+                : minutes === 10
+                  ? (isEnglish ? 'Creates fewer GitHub commits while still syncing regularly.' : '进一步减少 GitHub 提交次数，但仍会定期同步。')
+                  : (isEnglish ? 'Most conservative option for long writing sessions.' : '更保守的选项，适合长时间编辑。')
+
+            return (
+              <ChoiceButton
+                key={minutes}
+                active={settings.autoCommitIntervalMinutes === minutes}
+                label={label}
+                description={description}
+                onClick={() => updateSettings({ autoCommitIntervalMinutes: minutes })}
+              />
+            )
+          })}
         </div>
       </section>
 

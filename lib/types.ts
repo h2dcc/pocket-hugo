@@ -29,6 +29,7 @@ export type PostDraft = {
   assets: DraftAsset[]
   remoteAssetNames?: string[]
   frontmatterPreferences?: FrontmatterPreferences
+  autoCommitCount?: number
 }
 
 export type CustomFrontmatterField = {

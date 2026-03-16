@@ -90,6 +90,41 @@ function normalizeFieldKey(value: string) {
   return value.trim().toLowerCase()
 }
 
+function buildAutoCommitDraft(currentDraft: PostDraft): PostDraft {
+  return {
+    ...currentDraft,
+    frontmatter: {
+      ...currentDraft.frontmatter,
+      draft: true,
+    },
+  }
+}
+
+function buildAutoCommitSignature(currentDraft: PostDraft) {
+  const draft = buildAutoCommitDraft(currentDraft)
+
+  return JSON.stringify({
+    folderName: draft.folderName,
+    contentMode: draft.contentMode || 'bundle_single',
+    markdownFileName: draft.markdownFileName || 'index.md',
+    frontmatter: draft.frontmatter,
+    body: draft.body,
+    assets: draft.assets.map((asset) => ({
+      name: asset.name,
+      mimeType: asset.mimeType,
+      contentBase64: asset.contentBase64,
+    })),
+  })
+}
+
+function getAutoCommitIntervalLabel(minutes: number, isEnglish: boolean) {
+  if (minutes <= 0) {
+    return isEnglish ? 'Disabled' : '关闭'
+  }
+
+  return isEnglish ? `Every ${minutes} minutes` : `每 ${minutes} 分钟`
+}
+
 function PlusIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -201,6 +236,13 @@ export default function EditorPage() {
   const [copiedAssetName, setCopiedAssetName] = useState('')
   const [categoryInput, setCategoryInput] = useState('')
   const [tagInput, setTagInput] = useState('')
+  const [autoCommitStatus, setAutoCommitStatus] = useState('')
+  const latestDraftRef = useRef<PostDraft | null>(null)
+  const latestDraftSignatureRef = useRef<string | null>(null)
+  const autoCommitBaselineSignatureRef = useRef<string | null>(null)
+  const autoCommitPendingRef = useRef(false)
+  const autoCommitInFlightRef = useRef(false)
+  const autoCommitPausedRef = useRef(false)
 
   const cardStyle: React.CSSProperties = {
     border: '1px solid var(--border)',
@@ -250,6 +292,13 @@ export default function EditorPage() {
   useEffect(() => {
     const loadedSettings = loadSiteSettingsFromStorage()
     setSiteSettings(loadedSettings)
+    setAutoCommitStatus('')
+    latestDraftRef.current = null
+    latestDraftSignatureRef.current = null
+    autoCommitBaselineSignatureRef.current = null
+    autoCommitPendingRef.current = false
+    autoCommitInFlightRef.current = false
+    autoCommitPausedRef.current = false
 
     if (isTouchLikeViewport()) {
       setBodyEditorHeight(300)
@@ -313,6 +362,135 @@ export default function EditorPage() {
       cancelled = true
     }
   }, [draft, folderName, isEnglish])
+
+  useEffect(() => {
+    if (!draft) return
+
+    const signature = buildAutoCommitSignature(draft)
+    latestDraftRef.current = draft
+    latestDraftSignatureRef.current = signature
+
+    if (autoCommitBaselineSignatureRef.current === null) {
+      autoCommitBaselineSignatureRef.current = signature
+      autoCommitPendingRef.current = false
+      return
+    }
+
+    autoCommitPendingRef.current = signature !== autoCommitBaselineSignatureRef.current
+  }, [draft])
+
+  useEffect(() => {
+    const intervalMinutes = siteSettings.autoCommitIntervalMinutes
+    if (intervalMinutes <= 0) {
+      setAutoCommitStatus('')
+      return
+    }
+
+    if (autoCommitInFlightRef.current) {
+      return
+    }
+
+    setAutoCommitStatus((current) => {
+      if (current && current.includes(isEnglish ? 'failed' : '失败')) {
+        return current
+      }
+
+      if (autoCommitPendingRef.current) {
+        return isEnglish
+          ? `Auto commit pending, ${getAutoCommitIntervalLabel(intervalMinutes, true).toLowerCase()}.`
+          : `自动提交待执行，当前频率：${getAutoCommitIntervalLabel(intervalMinutes, false)}。`
+      }
+
+      return isEnglish
+        ? `Auto commit enabled: ${getAutoCommitIntervalLabel(intervalMinutes, true)}.`
+        : `已开启自动提交：${getAutoCommitIntervalLabel(intervalMinutes, false)}。`
+    })
+  }, [draft, isEnglish, siteSettings.autoCommitIntervalMinutes])
+
+  useEffect(() => {
+    const intervalMinutes = siteSettings.autoCommitIntervalMinutes
+    if (intervalMinutes <= 0) return
+
+    const timer = window.setInterval(() => {
+      if (
+        publishing ||
+        autoCommitPausedRef.current ||
+        autoCommitInFlightRef.current ||
+        !autoCommitPendingRef.current
+      ) {
+        return
+      }
+
+      const currentDraft = latestDraftRef.current
+      const currentSignature = latestDraftSignatureRef.current
+      if (!currentDraft || !currentSignature) return
+
+      autoCommitInFlightRef.current = true
+      setAutoCommitStatus(
+        isEnglish ? 'Auto committing draft to GitHub...' : '正在自动提交草稿到 GitHub...',
+      )
+
+      void (async () => {
+        try {
+          const response = await fetch('/api/publish', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              mode: 'auto_commit',
+              draft: currentDraft,
+            }),
+          })
+
+          const result = await response.json()
+
+          if (!response.ok || !result.ok) {
+            throw new Error(result.error || (isEnglish ? 'Auto commit failed.' : '自动提交失败。'))
+          }
+
+          autoCommitBaselineSignatureRef.current = currentSignature
+          const hasNewerChanges = latestDraftSignatureRef.current !== currentSignature
+          autoCommitPendingRef.current = hasNewerChanges
+          setDraft((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  autoCommitCount: (prev.autoCommitCount || 0) + 1,
+                }
+              : prev,
+          )
+          setAutoCommitStatus(
+            hasNewerChanges
+              ? (
+                  isEnglish
+                    ? `Auto commit pending, ${getAutoCommitIntervalLabel(intervalMinutes, true).toLowerCase()}.`
+                    : `自动提交待执行，当前频率：${getAutoCommitIntervalLabel(intervalMinutes, false)}。`
+                )
+              : (
+                  isEnglish
+                    ? `Auto committed at ${new Date().toLocaleTimeString()}.`
+                    : `已自动提交 ${new Date().toLocaleTimeString()}。`
+                ),
+          )
+        } catch (error) {
+          setAutoCommitStatus(
+            error instanceof Error
+              ? `${isEnglish ? 'Auto commit failed' : '自动提交失败'}: ${error.message}`
+              : isEnglish
+                ? 'Auto commit failed.'
+                : '自动提交失败。',
+          )
+        } finally {
+          autoCommitInFlightRef.current = false
+        }
+      })()
+    }, intervalMinutes * 60 * 1000)
+
+    return () => {
+      window.clearInterval(timer)
+    }
+  }, [isEnglish, publishing, siteSettings.autoCommitIntervalMinutes])
 
   const markdownOutput = useMemo(() => {
     if (!draft) return ''
@@ -658,7 +836,20 @@ export default function EditorPage() {
   }
 
   function handlePublishClick() {
-    if (!validateBeforePublish()) return
+    autoCommitPausedRef.current = true
+    if (!validateBeforePublish()) {
+      autoCommitPausedRef.current = false
+      return
+    }
+    if (autoCommitInFlightRef.current) {
+      setPublishError(
+        isEnglish
+          ? 'An auto commit is still running. Please wait a moment and try again.'
+          : '有一个自动提交还在进行中，请稍等一下再发布。',
+      )
+      autoCommitPausedRef.current = false
+      return
+    }
     setPublishConfirmOpen(true)
   }
 
@@ -701,11 +892,12 @@ export default function EditorPage() {
       await removeDraftFromStorage(draft.folderName)
       setPublishConfirmOpen(false)
       router.push(
-        `/publish/${draft.folderName}?path=${encodeURIComponent(result.path)}&files=${result.fileCount}&commitCount=${result.commitCount}&repo=${encodeURIComponent(result.repo || '')}&branch=${encodeURIComponent(result.branch || '')}&changes=${encodeURIComponent(JSON.stringify(result.fileChanges || []))}`,
+        `/publish/${draft.folderName}?path=${encodeURIComponent(result.path)}&files=${result.fileCount}&commitCount=${(draft.autoCommitCount || 0) + Number(result.commitCount || 1)}&repo=${encodeURIComponent(result.repo || '')}&branch=${encodeURIComponent(result.branch || '')}&changes=${encodeURIComponent(JSON.stringify(result.fileChanges || []))}`,
       )
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : '发布失败')
       setPublishConfirmOpen(false)
+      autoCommitPausedRef.current = false
     } finally {
       setPublishing(false)
     }
@@ -753,6 +945,11 @@ export default function EditorPage() {
           {draft.folderName}
         </div>
         <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>{status}</div>
+        {siteSettings.autoCommitIntervalMinutes > 0 ? (
+          <div style={{ color: 'var(--muted)', fontSize: 12, fontWeight: 500 }}>
+            {autoCommitStatus}
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -1675,7 +1872,10 @@ export default function EditorPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setPublishConfirmOpen(false)}
+                onClick={() => {
+                  autoCommitPausedRef.current = false
+                  setPublishConfirmOpen(false)
+                }}
                 disabled={publishing}
                 style={{
                   width: '100%',
@@ -1799,11 +1999,6 @@ export default function EditorPage() {
     </main>
   )
 }
-
-
-
-
-
 
 
 

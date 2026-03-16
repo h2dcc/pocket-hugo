@@ -28,7 +28,7 @@ function prepareDraftForStorage(draft: PostDraft): PostDraft {
       ...asset,
       // Only drop duplicated data URLs for locally uploaded images.
       // Remote GitHub assets rely on previewUrl because they do not have base64 content.
-      contentBase64: asset.contentBase64 ? '' : asset.contentBase64,
+      contentBase64: '',
       previewUrl: asset.contentBase64 ? '' : asset.previewUrl,
     })),
   }

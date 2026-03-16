@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderIndexMd, stringToBase64 } from '@/lib/markdown'
-import { publishPostToGithub } from '@/lib/github'
+import { autoCommitPostToGithub, publishPostToGithub } from '@/lib/github'
 import {
   DEFAULT_FRONTMATTER_PREFERENCES,
   normalizeFrontmatterPreferences,
@@ -12,7 +12,7 @@ import {
 } from '@/lib/site-settings'
 import type { PostDraft } from '@/lib/types'
 
-function validateDraft(draft: PostDraft): string | null {
+function validateDraftForPublish(draft: PostDraft): string | null {
   const preferences = normalizeFrontmatterPreferences(
     draft.frontmatterPreferences || DEFAULT_FRONTMATTER_PREFERENCES,
   )
@@ -25,10 +25,22 @@ function validateDraft(draft: PostDraft): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const draft = (await request.json()) as PostDraft
+    const body = (await request.json()) as {
+      mode?: 'publish' | 'auto_commit'
+      draft: PostDraft
+    } | PostDraft
+    const mode =
+      typeof body === 'object' && body && 'draft' in body && body.mode === 'auto_commit'
+        ? 'auto_commit'
+        : 'publish'
+    const draft = (typeof body === 'object' && body && 'draft' in body
+      ? body.draft
+      : body) as PostDraft
     const contentMode = normalizePostContentMode(draft.contentMode)
 
-    const validationError = validateDraft(draft)
+    const validationError = mode === 'publish'
+      ? validateDraftForPublish(draft)
+      : (!draft.folderName?.trim() ? 'Missing folderName.' : null)
     if (validationError) {
       return NextResponse.json(
         { ok: false, error: validationError },
@@ -38,36 +50,52 @@ export async function POST(request: NextRequest) {
 
     const markdownFileName = normalizePostMarkdownFileName(draft.markdownFileName)
     const markdownContent = renderIndexMd(
-      draft.frontmatter,
+      mode === 'auto_commit'
+        ? {
+            ...draft.frontmatter,
+            draft: true,
+          }
+        : draft.frontmatter,
       draft.body,
       draft.frontmatterPreferences,
     )
     const markdownContentBase64 = stringToBase64(markdownContent)
     const changedAssets = isBundleMode(contentMode)
       ? draft.assets.filter(
-      (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,
-        )
-      : []
-    const removedAssetNames = isBundleMode(contentMode)
-      ? (draft.remoteAssetNames || []).filter(
-          (name) => !draft.assets.some((asset) => asset.name === name),
+          (asset) => typeof asset.contentBase64 === 'string' && asset.contentBase64.trim().length > 0,
         )
       : []
 
-    const result = await publishPostToGithub({
-      folderName: draft.folderName,
-      contentMode,
-      markdownFileName,
-      markdownContentBase64,
-      assets: changedAssets.map((asset) => ({
-        name: asset.name,
-        contentBase64: asset.contentBase64,
-      })),
-      removedAssetNames,
-    })
+    const result = mode === 'auto_commit'
+      ? await autoCommitPostToGithub({
+          folderName: draft.folderName,
+          contentMode,
+          markdownFileName,
+          markdownContentBase64,
+          assets: changedAssets.map((asset) => ({
+            name: asset.name,
+            contentBase64: asset.contentBase64,
+          })),
+        })
+      : await publishPostToGithub({
+          folderName: draft.folderName,
+          contentMode,
+          markdownFileName,
+          markdownContentBase64,
+          assets: changedAssets.map((asset) => ({
+            name: asset.name,
+            contentBase64: asset.contentBase64,
+          })),
+          removedAssetNames: isBundleMode(contentMode)
+            ? (draft.remoteAssetNames || []).filter(
+                (name) => !draft.assets.some((asset) => asset.name === name),
+              )
+            : [],
+        })
 
     return NextResponse.json({
       ok: true,
+      mode,
       path: result.path,
       commitCount: result.commitCount,
       fileCount: result.fileCount,

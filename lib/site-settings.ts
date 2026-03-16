@@ -9,12 +9,16 @@ export type PostContentMode =
   | 'bundle_multilingual'
   | 'flat_markdown'
 
+export const AUTO_COMMIT_INTERVAL_OPTIONS = [0, 5, 10, 15] as const
+export type AutoCommitIntervalMinutes = (typeof AUTO_COMMIT_INTERVAL_OPTIONS)[number]
+
 export type SiteSettings = {
   postContentMode: PostContentMode
   imageConversionEnabled: boolean
   imageMaxWidth: number
   imageQuality: number
   autoImageNamingEnabled: boolean
+  autoCommitIntervalMinutes: AutoCommitIntervalMinutes
   timezoneOffsetHours: number
   categoriesPreset: string[]
   frontmatterPreferences: FrontmatterPreferences
@@ -28,6 +32,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   imageMaxWidth: 1080,
   imageQuality: 0.82,
   autoImageNamingEnabled: true,
+  autoCommitIntervalMinutes: 5,
   timezoneOffsetHours: 8,
   categoriesPreset: [],
   frontmatterPreferences: DEFAULT_FRONTMATTER_PREFERENCES,
@@ -51,6 +56,20 @@ function normalizeStringList(value: unknown): string[] {
     result.push(normalized)
   }
   return result
+}
+
+export function normalizeAutoCommitIntervalMinutes(
+  value: unknown,
+  fallback: AutoCommitIntervalMinutes = DEFAULT_SITE_SETTINGS.autoCommitIntervalMinutes,
+): AutoCommitIntervalMinutes {
+  const parsed = Math.round(Number(value))
+  if (
+    AUTO_COMMIT_INTERVAL_OPTIONS.includes(parsed as AutoCommitIntervalMinutes)
+  ) {
+    return parsed as AutoCommitIntervalMinutes
+  }
+
+  return fallback
 }
 
 export function normalizePostContentMode(value: unknown): PostContentMode {
@@ -103,6 +122,9 @@ export function normalizeSiteSettings(value: unknown): SiteSettings {
       typeof raw.autoImageNamingEnabled === 'boolean'
         ? raw.autoImageNamingEnabled
         : DEFAULT_SITE_SETTINGS.autoImageNamingEnabled,
+    autoCommitIntervalMinutes: normalizeAutoCommitIntervalMinutes(
+      raw.autoCommitIntervalMinutes,
+    ),
     timezoneOffsetHours: Math.min(
       14,
       Math.max(
@@ -128,7 +150,19 @@ export function loadSiteSettingsFromStorage(): SiteSettings {
   }
 
   try {
-    return normalizeSiteSettings(JSON.parse(raw))
+    const parsed = JSON.parse(raw) as Partial<SiteSettings>
+    const normalized = normalizeSiteSettings(parsed)
+
+    // Keep the legacy behavior for existing users until they explicitly choose
+    // an auto-commit interval in preferences.
+    if (!Object.prototype.hasOwnProperty.call(parsed, 'autoCommitIntervalMinutes')) {
+      return {
+        ...normalized,
+        autoCommitIntervalMinutes: 0,
+      }
+    }
+
+    return normalized
   } catch {
     return DEFAULT_SITE_SETTINGS
   }

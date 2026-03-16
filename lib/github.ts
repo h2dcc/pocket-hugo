@@ -2,7 +2,7 @@ import { isBundleMode, type PostContentMode } from '@/lib/site-settings'
 import { commitGithubFiles } from '@/lib/github-api'
 import { requireGithubRepoContext } from '@/lib/github-context'
 
-export async function publishPostToGithub(input: {
+type CommitPostToGithubInput = {
   folderName: string
   contentMode: PostContentMode
   markdownFileName: string
@@ -12,7 +12,11 @@ export async function publishPostToGithub(input: {
     contentBase64: string
   }>
   removedAssetNames?: string[]
-}) {
+  message: string
+  preserveExistingAssets?: boolean
+}
+
+async function commitPostToGithub(input: CommitPostToGithubInput) {
   const { token, repoConfig } = await requireGithubRepoContext()
   const bundleMode = isBundleMode(input.contentMode)
   const postPath = bundleMode
@@ -34,7 +38,9 @@ export async function publishPostToGithub(input: {
       contentBase64: asset.contentBase64,
     })),
   ]
-  const deletedPaths = (input.removedAssetNames || []).map((name) => `${postPath}/${name}`)
+  const deletedPaths = input.preserveExistingAssets
+    ? []
+    : (input.removedAssetNames || []).map((name) => `${postPath}/${name}`)
   const fileChanges = [
     ...files.map((file) => ({ path: file.path, action: 'updated' as const })),
     ...deletedPaths.map((path) => ({ path, action: 'deleted' as const })),
@@ -43,7 +49,7 @@ export async function publishPostToGithub(input: {
   const commit = await commitGithubFiles({
     files,
     deletePaths: deletedPaths,
-    message: `Publish post: ${input.folderName}`,
+    message: input.message,
     token,
     context: {
       owner: repoConfig.owner,
@@ -61,4 +67,20 @@ export async function publishPostToGithub(input: {
     repo: `${repoConfig.owner}/${repoConfig.repo}`,
     branch: repoConfig.branch,
   }
+}
+
+export async function publishPostToGithub(input: Omit<CommitPostToGithubInput, 'message' | 'preserveExistingAssets'>) {
+  return commitPostToGithub({
+    ...input,
+    message: `Publish post: ${input.folderName}`,
+  })
+}
+
+export async function autoCommitPostToGithub(input: Omit<CommitPostToGithubInput, 'message' | 'preserveExistingAssets' | 'removedAssetNames'>) {
+  return commitPostToGithub({
+    ...input,
+    removedAssetNames: [],
+    message: `Auto-save draft: ${input.folderName}`,
+    preserveExistingAssets: true,
+  })
 }

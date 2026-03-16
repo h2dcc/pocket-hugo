@@ -11,6 +11,7 @@ const DB_NAME = 'pockethugo-assets'
 const DB_VERSION = 1
 const STORE_NAME = 'draft-assets'
 const DRAFT_KEY_INDEX = 'by-draft-key'
+let dbPromise: Promise<IDBDatabase> | null = null
 
 function getIndexedDb() {
   if (typeof indexedDB === 'undefined') {
@@ -36,21 +37,45 @@ function transactionDone(transaction: IDBTransaction) {
 }
 
 async function openAssetDb() {
-  const idb = getIndexedDb()
-  const request = idb.open(DB_NAME, DB_VERSION)
+  if (!dbPromise) {
+    const idb = getIndexedDb()
+    dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+      const request = idb.open(DB_NAME, DB_VERSION)
 
-  request.onupgradeneeded = () => {
-    const db = request.result
-    const store = db.objectStoreNames.contains(STORE_NAME)
-      ? request.transaction?.objectStore(STORE_NAME)
-      : db.createObjectStore(STORE_NAME, { keyPath: 'id' })
+      request.onupgradeneeded = () => {
+        const db = request.result
+        const store = db.objectStoreNames.contains(STORE_NAME)
+          ? request.transaction?.objectStore(STORE_NAME)
+          : db.createObjectStore(STORE_NAME, { keyPath: 'id' })
 
-    if (store && !store.indexNames.contains(DRAFT_KEY_INDEX)) {
-      store.createIndex(DRAFT_KEY_INDEX, 'draftKey', { unique: false })
-    }
+        if (store && !store.indexNames.contains(DRAFT_KEY_INDEX)) {
+          store.createIndex(DRAFT_KEY_INDEX, 'draftKey', { unique: false })
+        }
+      }
+
+      request.onsuccess = () => {
+        const db = request.result
+        db.onclose = () => {
+          dbPromise = null
+        }
+        db.onversionchange = () => {
+          db.close()
+          dbPromise = null
+        }
+        resolve(db)
+      }
+      request.onerror = () => {
+        dbPromise = null
+        reject(request.error || new Error('IndexedDB request failed.'))
+      }
+      request.onblocked = () => {
+        dbPromise = null
+        reject(new Error('IndexedDB open request was blocked.'))
+      }
+    })
   }
 
-  return requestToPromise(request)
+  return dbPromise
 }
 
 function buildRecordId(draftKey: string, assetName: string) {
@@ -80,13 +105,16 @@ export async function syncStoredAssetsForDraftKey(
   draftKey: string,
   assets: Array<{ name: string; mimeType: string; contentBase64: string }>,
 ) {
+  const localAssets = assets.filter((asset) => asset.contentBase64.trim())
+  if (localAssets.length === 0) {
+    return
+  }
+
   const db = await openAssetDb()
   const transaction = db.transaction(STORE_NAME, 'readwrite')
   const store = transaction.objectStore(STORE_NAME)
   const index = store.index(DRAFT_KEY_INDEX)
   const existingKeys = (await requestToPromise(index.getAllKeys(draftKey))) as string[]
-
-  const localAssets = assets.filter((asset) => asset.contentBase64.trim())
   const keepKeys = new Set<string>()
 
   for (const asset of localAssets) {

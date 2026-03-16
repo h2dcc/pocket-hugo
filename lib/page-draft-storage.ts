@@ -22,7 +22,7 @@ function preparePageDraftForStorage(draft: PageDraft): PageDraft {
     ...draft,
     assets: draft.assets.map((asset) => ({
       ...asset,
-      contentBase64: asset.contentBase64 ? '' : asset.contentBase64,
+      contentBase64: '',
       previewUrl: asset.contentBase64 ? '' : asset.previewUrl,
     })),
   }
