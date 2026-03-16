@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireGithubRepoContext } from '@/lib/github-context'
+import { buildPostGithubAssetProxyUrl } from '@/lib/github-asset-url'
 import { getGithubFileContent, listGithubDir } from '@/lib/github-read'
 import { parseIndexMdToDraft } from '@/lib/post-parse'
 import {
@@ -52,7 +53,12 @@ export async function POST(request: NextRequest) {
             name: item.item.name,
             mimeType: item.mimeType as string,
             contentBase64: '',
-            previewUrl: item.item.download_url || '',
+            previewUrl: buildPostGithubAssetProxyUrl(
+              folderName,
+              item.item.name,
+              contentMode,
+              item.mimeType as string,
+            ),
           }))
       : []
 

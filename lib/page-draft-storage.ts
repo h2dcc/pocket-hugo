@@ -4,6 +4,7 @@
   syncStoredAssetsForDraftKey,
 } from '@/lib/asset-db'
 import { restoreAssetPreviewUrls } from '@/lib/image'
+import { buildPageGithubAssetProxyUrl } from '@/lib/github-asset-url'
 import type { DraftAsset } from '@/lib/types'
 import type { PageDraft } from '@/lib/page-file'
 
@@ -83,7 +84,18 @@ export async function loadPageDraftFromStorage(filePath: string): Promise<PageDr
     return {
       ...parsed,
       assets: restoreAssetPreviewUrls(
-        mergeStoredAssets(parsed.assets || [], storedAssetMap),
+        mergeStoredAssets(parsed.assets || [], storedAssetMap).map((asset) =>
+          asset.contentBase64.trim()
+            ? asset
+            : {
+                ...asset,
+                previewUrl: buildPageGithubAssetProxyUrl(
+                  parsed.filePath,
+                  asset.name,
+                  asset.mimeType,
+                ),
+              },
+        ),
       ),
     }
   } catch {

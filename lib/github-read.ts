@@ -1,10 +1,24 @@
-import { getGithubFileContent as getFileContent, listGithubDir as listDir } from '@/lib/github-api'
+import {
+  getGithubFileBase64 as getFileBase64,
+  getGithubFileContent as getFileContent,
+  listGithubDir as listDir,
+} from '@/lib/github-api'
 import { requireGithubRepoContext } from '@/lib/github-context'
 
 export async function getGithubFileContent(path: string): Promise<string> {
   const { token, repoConfig } = await requireGithubRepoContext()
 
   return getFileContent(path, token, {
+    owner: repoConfig.owner,
+    repo: repoConfig.repo,
+    branch: repoConfig.branch,
+  })
+}
+
+export async function getGithubFileBase64(path: string): Promise<string> {
+  const { token, repoConfig } = await requireGithubRepoContext()
+
+  return getFileBase64(path, token, {
     owner: repoConfig.owner,
     repo: repoConfig.repo,
     branch: repoConfig.branch,

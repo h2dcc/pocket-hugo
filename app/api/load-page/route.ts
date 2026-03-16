@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildPageGithubAssetProxyUrl } from '@/lib/github-asset-url'
 import { getGithubFileContent } from '@/lib/github-read'
 import { createEmptyPageDraft, parsePageFileContent, type PageEditorMode } from '@/lib/page-file'
 import { requireGithubRepoContext } from '@/lib/github-context'
@@ -48,7 +49,11 @@ export async function POST(request: NextRequest) {
           name: entry.item.name,
           mimeType: entry.mimeType as string,
           contentBase64: '',
-          previewUrl: entry.item.download_url || '',
+          previewUrl: buildPageGithubAssetProxyUrl(
+            filePath,
+            entry.item.name,
+            entry.mimeType as string,
+          ),
         }))
 
       return NextResponse.json({

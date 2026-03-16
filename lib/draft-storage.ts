@@ -5,6 +5,7 @@
 } from '@/lib/asset-db'
 import { restoreAssetPreviewUrls } from '@/lib/image'
 import { normalizeFrontmatter } from '@/lib/frontmatter'
+import { buildPostGithubAssetProxyUrl } from '@/lib/github-asset-url'
 import {
   normalizePostContentMode,
   normalizePostMarkdownFileName,
@@ -86,13 +87,26 @@ export async function loadDraftFromStorage(folderName: string): Promise<PostDraf
   try {
     const parsed = JSON.parse(raw) as PostDraft
     const storedAssetMap = await loadStoredAssetsForDraftKey(draftKey)
+    const normalizedContentMode = normalizePostContentMode(parsed.contentMode)
     return {
       ...parsed,
-      contentMode: normalizePostContentMode(parsed.contentMode),
+      contentMode: normalizedContentMode,
       markdownFileName: normalizePostMarkdownFileName(parsed.markdownFileName),
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
       assets: restoreAssetPreviewUrls(
-        mergeStoredAssets(parsed.assets || [], storedAssetMap),
+        mergeStoredAssets(parsed.assets || [], storedAssetMap).map((asset) =>
+          asset.contentBase64.trim()
+            ? asset
+            : {
+                ...asset,
+                previewUrl: buildPostGithubAssetProxyUrl(
+                  parsed.folderName,
+                  asset.name,
+                  normalizedContentMode,
+                  asset.mimeType,
+                ),
+              },
+        ),
       ),
     }
   } catch {
