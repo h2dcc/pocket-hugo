@@ -7,6 +7,10 @@ type CommitPostToGithubInput = {
   contentMode: PostContentMode
   markdownFileName: string
   markdownContentBase64: string
+  localizedMarkdownFiles?: Array<{
+    fileName: string
+    contentBase64: string
+  }>
   assets: Array<{
     name: string
     contentBase64: string
@@ -33,6 +37,16 @@ async function commitPostToGithub(input: CommitPostToGithubInput) {
         : `${repoConfig.postsBasePath}/${input.markdownFileName}`,
       contentBase64: input.markdownContentBase64,
     },
+    ...(
+      input.localizedMarkdownFiles?.filter(
+        (file) => typeof file.contentBase64 === 'string' && file.contentBase64.trim().length > 0,
+      ) || []
+    ).map((file) => ({
+      path: bundleMode
+        ? `${postPath}/${file.fileName}`
+        : `${repoConfig.postsBasePath}/${file.fileName}`,
+      contentBase64: file.contentBase64,
+    })),
     ...assetFiles.map((asset) => ({
       path: `${postPath}/${asset.name}`,
       contentBase64: asset.contentBase64,

@@ -40,10 +40,12 @@ export async function POST(request: NextRequest) {
     const markdownContent = await getGithubFileContent(`${postPath}/${markdownFileName}`)
     const draftKey = isBundleMode(contentMode) ? folderName : markdownFileName
     const draft = parseIndexMdToDraft(draftKey, markdownContent, contentMode, markdownFileName)
+    const remoteFiles = isBundleMode(contentMode)
+      ? (await listGithubDir(postPath)).filter((item) => item.type === 'file')
+      : []
 
     const remoteAssets = isBundleMode(contentMode)
-      ? (await listGithubDir(postPath))
-          .filter((item) => item.type === 'file')
+      ? remoteFiles
           .map((item) => ({
             item,
             mimeType: getImageMimeType(item.name),
@@ -66,6 +68,10 @@ export async function POST(request: NextRequest) {
       ok: true,
       draft: {
         ...draft,
+        remoteMarkdownFileNames: remoteFiles
+          .map((item) => item.name)
+          .filter((name) => /\.md$/i.test(name))
+          .map((name) => normalizePostMarkdownFileName(name)),
         assets: remoteAssets,
         remoteAssetNames: remoteAssets.map((asset) => asset.name),
       },

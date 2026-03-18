@@ -1,8 +1,10 @@
 'use client'
 
+import { useMemo } from 'react'
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
 type GuideSection = {
@@ -10,6 +12,26 @@ type GuideSection = {
   body: string[]
   images?: string[]
   kind?: 'default' | 'structure-examples'
+}
+
+const multilingualGuideSectionEn: GuideSection = {
+  title: 'Create Multilingual Versions',
+  body: [
+    'In Multilingual Bundle mode, the preview panel also includes a multilingual Markdown area.',
+    'You can review the raw Markdown, copy it with one click, send it to another AI tool for translation, then paste the translated result back into a new file such as `index.en.md` or `index.de.md`.',
+    'PocketHugo also shows which Markdown files already exist in the current folder and blocks duplicate file names, helping avoid publishing conflicts when you add more language versions.',
+  ],
+  images: ['create-multi-versions.webp'],
+}
+
+const multilingualGuideSectionZh: GuideSection = {
+  title: '创建多语言版本',
+  body: [
+    '在 Multilingual Bundle 模式下，预览页下方会出现多语言 Markdown 区域。',
+    '你可以先查看原始 Markdown，一键复制后粘贴到其他 AI 工具里翻译，再把结果粘贴回新的文件，比如 `index.en.md` 或 `index.de.md`。',
+    'PocketHugo 还会提示当前目录里已经存在的 Markdown 文件，并阻止重复文件名，减少新增多语言版本时的发布冲突。',
+  ],
+  images: ['create-multi-versions.webp'],
 }
 
 const structureExampleEn = `content/
@@ -117,6 +139,24 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
         'In bundle modes, image upload and asset management are enabled. In Flat Markdown mode, the image section is intentionally hidden because PocketHugo does not manage separated asset folders for you.',
       ],
       images: ['writing-posts.webp'],
+    },
+    {
+      title: '创建多语言版本',
+      body: [
+        '在 Multilingual Bundle 模式下，预览页下方会出现多语言 Markdown 区域。',
+        '你可以先查看原始 Markdown，一键复制后粘贴到其他 AI 工具里翻译，再把结果粘贴回新的文件，比如 `index.en.md` 或 `index.de.md`。',
+        'PocketHugo 还会提示当前目录里已经存在的 Markdown 文件，并阻止重复文件名，减少新增多语言版本时的发布冲突。',
+      ],
+      images: ['create-multi-versions.webp'],
+    },
+    {
+      title: 'Create Multilingual Versions',
+      body: [
+        'In Multilingual Bundle mode, the preview panel also includes a multilingual Markdown area.',
+        'You can review the raw Markdown, copy it with one click, send it to another AI tool for translation, then paste the translated result back into a new file such as `index.en.md` or `index.de.md`.',
+        'PocketHugo also shows which Markdown files already exist in the current folder and blocks duplicate file names, helping avoid publishing conflicts when you add more language versions.',
+      ],
+      images: ['create-multi-versions.webp'],
     },
     {
       title: 'Image Workflow',
@@ -276,7 +316,35 @@ function slugifyHeading(value: string) {
 
 export default function GuidePage() {
   const { isEnglish } = useLanguage()
-  const sections = isEnglish ? guideSections.en : guideSections.zh
+  const sections = useMemo(() => {
+    const insertAfterWritingPosts = (items: GuideSection[], extraSection: GuideSection) => {
+      const baseSections = items.filter((section) => section.title !== extraSection.title)
+      const writingPostsIndex = baseSections.findIndex(
+        (section) => section.images?.includes('writing-posts.webp'),
+      )
+
+      if (writingPostsIndex < 0) {
+        return [...baseSections, extraSection]
+      }
+
+      return [
+        ...baseSections.slice(0, writingPostsIndex + 1),
+        extraSection,
+        ...baseSections.slice(writingPostsIndex + 1),
+      ]
+    }
+
+    if (isEnglish) {
+      return insertAfterWritingPosts(
+        guideSections.en.filter(
+          (section) => section.title !== multilingualGuideSectionZh.title,
+        ),
+        multilingualGuideSectionEn,
+      )
+    }
+
+    return insertAfterWritingPosts(guideSections.zh, multilingualGuideSectionZh)
+  }, [isEnglish])
   const tocTitle = isEnglish ? 'On This Page' : '本页目录'
 
   return (
@@ -334,6 +402,7 @@ export default function GuidePage() {
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <LanguageToggle />
+            <ThemeToggle />
             <Link
               href="/"
               style={{

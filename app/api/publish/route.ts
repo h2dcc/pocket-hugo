@@ -10,7 +10,7 @@ import {
   normalizePostContentMode,
   normalizePostMarkdownFileName,
 } from '@/lib/site-settings'
-import type { PostDraft } from '@/lib/types'
+import { normalizeLocalizedMarkdownFiles, type PostDraft } from '@/lib/types'
 
 function validateDraftForPublish(draft: PostDraft): string | null {
   const preferences = normalizeFrontmatterPreferences(
@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     }
 
     const markdownFileName = normalizePostMarkdownFileName(draft.markdownFileName)
+    const localizedMarkdownFiles = normalizeLocalizedMarkdownFiles(
+      draft.localizedMarkdownFiles,
+    ).filter((file) => file.fileName.trim() && file.content.trim())
     const markdownContent = renderIndexMd(
       mode === 'auto_commit'
         ? {
@@ -72,6 +75,10 @@ export async function POST(request: NextRequest) {
           contentMode,
           markdownFileName,
           markdownContentBase64,
+          localizedMarkdownFiles: localizedMarkdownFiles.map((file) => ({
+            fileName: normalizePostMarkdownFileName(file.fileName),
+            contentBase64: stringToBase64(file.content),
+          })),
           assets: changedAssets.map((asset) => ({
             name: asset.name,
             contentBase64: asset.contentBase64,
@@ -82,6 +89,10 @@ export async function POST(request: NextRequest) {
           contentMode,
           markdownFileName,
           markdownContentBase64,
+          localizedMarkdownFiles: localizedMarkdownFiles.map((file) => ({
+            fileName: normalizePostMarkdownFileName(file.fileName),
+            contentBase64: stringToBase64(file.content),
+          })),
           assets: changedAssets.map((asset) => ({
             name: asset.name,
             contentBase64: asset.contentBase64,

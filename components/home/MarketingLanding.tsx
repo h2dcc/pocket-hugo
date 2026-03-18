@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import BrandMark from '@/components/layout/BrandMark'
 import LanguageToggle from '@/components/language/LanguageToggle'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
 const githubRepoUrl = 'https://github.com/h2dcc/pocket-hugo'
@@ -338,6 +339,7 @@ export default function MarketingLanding() {
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <LanguageToggle />
+                <ThemeToggle />
                 <Link
                   href="/guide"
                   style={{

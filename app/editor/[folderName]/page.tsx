@@ -25,11 +25,17 @@ import {
 import {
   DEFAULT_SITE_SETTINGS,
   loadSiteSettingsFromStorage,
+  normalizePostMarkdownFileName,
   type SiteSettings,
 } from '@/lib/site-settings'
 import { useLanguage } from '@/lib/use-language'
 import { useRequireAuth } from '@/lib/use-require-auth'
-import type { DraftAsset, PostDraft } from '@/lib/types'
+import {
+  createLocalizedMarkdownId,
+  normalizeLocalizedMarkdownFiles,
+  type DraftAsset,
+  type PostDraft,
+} from '@/lib/types'
 
 function createCustomFieldId() {
   return `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
@@ -109,6 +115,7 @@ function buildAutoCommitSignature(currentDraft: PostDraft) {
     markdownFileName: draft.markdownFileName || 'index.md',
     frontmatter: draft.frontmatter,
     body: draft.body,
+    localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(draft.localizedMarkdownFiles),
     assets: draft.assets.map((asset) => ({
       name: asset.name,
       mimeType: asset.mimeType,
@@ -154,6 +161,60 @@ function parseEnglishCommaList(value: string) {
 function isTouchLikeViewport() {
   if (typeof window === 'undefined') return false
   return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0
+}
+
+function normalizeOptionalMarkdownFileName(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  return normalizePostMarkdownFileName(trimmed)
+}
+
+const AI_TRANSLATION_LINKS = [
+  { label: 'Grok', href: 'https://grok.com/' },
+  { label: 'Claude', href: 'https://claude.ai/new' },
+  { label: 'Qwen', href: 'https://chat.qwen.ai/' },
+  { label: 'Doubao', href: 'https://www.doubao.com/chat/' },
+
+] as const
+
+function buildTranslationPrompt(markdown: string, targetLanguage: string, isEnglish: boolean) {
+  const language = targetLanguage.trim() || (isEnglish ? 'Japanese' : '日文')
+
+  const lines = isEnglish
+    ? [
+        `Please translate the following Markdown document into ${language}.`,
+        'Requirements:',
+        '1. Keep the original Markdown structure exactly, including headings, lists, links, images, blockquotes, tables, code fences, inline code, and any embedded HTML.',
+        '2. Translate only the natural-language text. Do not summarize, omit, reorder, or add content.',
+        '3. Preserve frontmatter keys, Markdown syntax, file paths, URLs, image links, shortcode syntax, and code blocks exactly as they are.',
+        '4. If a name, term, or brand should remain unchanged, keep it unchanged.',
+        '5. Return only the translated Markdown content, with no explanation, no extra commentary, and no code fence wrapper.',
+        '',
+        'Markdown content:',
+        markdown,
+      ]
+    : [
+        `这是一份 Markdown 文件，请将其完整翻译成${language}，并严格保持原始 Markdown 格式。`,
+        '要求：',
+        '1. 必须完整保留原有 Markdown 结构，包括标题、列表、链接、图片、引用、表格、代码块、行内代码以及嵌入的 HTML。',
+        '2. 只翻译自然语言文本，不要总结、不要删减、不要改写顺序，也不要补充额外内容。',
+        '3. frontmatter 字段名、Markdown 语法、文件路径、URL、图片链接、shortcode 语法和代码块内容都必须原样保留。',
+        '4. 人名、品牌名或应保持原样的术语请不要擅自翻译。',
+        '5. 只输出翻译后的 Markdown 内容，不要附加解释，不要输出额外说明，也不要包裹代码块。',
+        '',
+        'Markdown 内容：',
+        markdown,
+      ]
+
+  return lines.join('\n')
+}
+
+function normalizeRemoteMarkdownFileNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+
+  return value
+    .map((item) => normalizeOptionalMarkdownFileName(String(item ?? '')))
+    .filter(Boolean)
 }
 
 function applyFrontmatterPreferencesToDraft(
@@ -221,6 +282,7 @@ export default function EditorPage() {
   const router = useRouter()
   const checkingAuth = useRequireAuth(folderName ? `/editor/${folderName}` : '/editor')
   const bodyTextareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const localizedTextareaRefs = useRef<Record<string, { current: HTMLTextAreaElement | null }>>({})
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState('')
   const [draft, setDraft] = useState<PostDraft | null>(null)
@@ -234,6 +296,7 @@ export default function EditorPage() {
   const [publishConfirmOpen, setPublishConfirmOpen] = useState(false)
   const [previewAsset, setPreviewAsset] = useState<DraftAsset | null>(null)
   const [copiedAssetName, setCopiedAssetName] = useState('')
+  const [copiedMarkdown, setCopiedMarkdown] = useState('')
   const [categoryInput, setCategoryInput] = useState('')
   const [tagInput, setTagInput] = useState('')
   const [autoCommitStatus, setAutoCommitStatus] = useState('')
@@ -315,6 +378,8 @@ export default function EditorPage() {
       const restoredDraft: PostDraft = {
         ...parsed,
         frontmatter: normalizeFrontmatter(parsed.frontmatter),
+        localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(parsed.localizedMarkdownFiles),
+        remoteMarkdownFileNames: normalizeRemoteMarkdownFileNames(parsed.remoteMarkdownFileNames),
         assets: restoreAssetPreviewUrls(parsed.assets || []),
       }
 
@@ -497,7 +562,47 @@ export default function EditorPage() {
     return renderIndexMd(draft.frontmatter, draft.body, draft.frontmatterPreferences)
   }, [draft])
   const isFlatMarkdownMode = draft?.contentMode === 'flat_markdown'
+  const isMultilingualMode = draft?.contentMode === 'bundle_multilingual'
   const markdownFileName = draft?.markdownFileName || 'index.md'
+  const localizedMarkdownFiles = useMemo(
+    () => normalizeLocalizedMarkdownFiles(draft?.localizedMarkdownFiles),
+    [draft?.localizedMarkdownFiles],
+  )
+  const remoteMarkdownFileNames = useMemo(
+    () => normalizeRemoteMarkdownFileNames(draft?.remoteMarkdownFileNames),
+    [draft?.remoteMarkdownFileNames],
+  )
+  const occupiedMarkdownFileNames = useMemo(() => {
+    const names = new Set<string>()
+    names.add(normalizePostMarkdownFileName(markdownFileName))
+    for (const name of remoteMarkdownFileNames) {
+      names.add(name)
+    }
+    return Array.from(names)
+  }, [markdownFileName, remoteMarkdownFileNames])
+  const localizedMarkdownConflicts = useMemo(() => {
+    const duplicateIds = new Set<string>()
+    const seen = new Map<string, string>()
+
+    for (const file of localizedMarkdownFiles) {
+      const normalized = normalizeOptionalMarkdownFileName(file.fileName)
+      if (!normalized) continue
+
+      if (occupiedMarkdownFileNames.includes(normalized)) {
+        duplicateIds.add(file.id)
+      }
+
+      const previousId = seen.get(normalized)
+      if (previousId) {
+        duplicateIds.add(previousId)
+        duplicateIds.add(file.id)
+      } else {
+        seen.set(normalized, file.id)
+      }
+    }
+
+    return duplicateIds
+  }, [localizedMarkdownFiles, occupiedMarkdownFileNames])
 
   const coverAsset = useMemo(() => findCoverAsset(draft), [draft])
   const frontmatterPreferences = useMemo(
@@ -787,6 +892,86 @@ export default function EditorPage() {
     }
   }
 
+  async function copyMarkdownOutput() {
+    try {
+      await navigator.clipboard.writeText(markdownOutput)
+      setCopiedMarkdown('main')
+      setTimeout(() => setCopiedMarkdown(''), 1200)
+    } catch {
+      setStatus(
+        isEnglish
+          ? 'Unable to copy Markdown on this device'
+          : '当前设备无法复制 Markdown 内容',
+      )
+    }
+  }
+
+  async function copyTranslationPrompt(fileId: string, targetLanguage: string) {
+    try {
+      await navigator.clipboard.writeText(
+        buildTranslationPrompt(markdownOutput, targetLanguage, isEnglish),
+      )
+      setCopiedMarkdown(fileId)
+      setTimeout(() => setCopiedMarkdown(''), 1200)
+    } catch {
+      setStatus(
+        isEnglish
+          ? 'Unable to copy the translation prompt on this device'
+          : '当前设备无法复制翻译提示词',
+      )
+    }
+  }
+
+  function addLocalizedMarkdownFile() {
+    setDraft((prev) => {
+      if (!prev) return prev
+
+      return {
+        ...prev,
+        localizedMarkdownFiles: [
+          ...normalizeLocalizedMarkdownFiles(prev.localizedMarkdownFiles),
+          {
+            id: createLocalizedMarkdownId(),
+            fileName: '',
+            targetLanguage: '',
+            content: '',
+          },
+        ],
+      }
+    })
+  }
+
+  function updateLocalizedMarkdownFile(
+    fileId: string,
+    patch: Partial<NonNullable<PostDraft['localizedMarkdownFiles']>[number]>,
+  ) {
+    setDraft((prev) => {
+      if (!prev) return prev
+
+      return {
+        ...prev,
+        localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(prev.localizedMarkdownFiles).map((file) =>
+          file.id === fileId ? { ...file, ...patch } : file,
+        ),
+      }
+    })
+  }
+
+  function removeLocalizedMarkdownFile(fileId: string) {
+    setDraft((prev) => {
+      if (!prev) return prev
+
+      delete localizedTextareaRefs.current[fileId]
+
+      return {
+        ...prev,
+        localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(prev.localizedMarkdownFiles).filter(
+          (file) => file.id !== fileId,
+        ),
+      }
+    })
+  }
+
   function handleAssetUploaded(asset: DraftAsset) {
     setDraft((prev) => {
       if (!prev) return prev
@@ -829,6 +1014,27 @@ export default function EditorPage() {
     if (!draft.frontmatter.date.trim()) {
       setPublishError(isEnglish ? 'Please enter a date first.' : '请先填写日期')
       return false
+    }
+
+    for (const file of localizedMarkdownFiles) {
+      const normalized = normalizeOptionalMarkdownFileName(file.fileName)
+      if (!normalized) {
+        setPublishError(
+          isEnglish
+            ? 'Please fill in each localized Markdown file name first.'
+            : '请先填写每个多语言 Markdown 文件名。',
+        )
+        return false
+      }
+
+      if (localizedMarkdownConflicts.has(file.id)) {
+        setPublishError(
+          isEnglish
+            ? `Localized Markdown file name conflicts with an existing file: ${normalized}`
+            : `多语言 Markdown 文件名与已有文件冲突：${normalized}`,
+        )
+        return false
+      }
     }
 
     setPublishError('')
@@ -905,6 +1111,14 @@ export default function EditorPage() {
 
   function setAsCover(assetName: string) {
     updateFrontmatter('image', assetName)
+  }
+
+  function getLocalizedTextareaRef(fileId: string) {
+    if (!localizedTextareaRefs.current[fileId]) {
+      localizedTextareaRefs.current[fileId] = { current: null }
+    }
+
+    return localizedTextareaRefs.current[fileId]
   }
 
   if (checkingAuth || !draft) {
@@ -1783,7 +1997,39 @@ export default function EditorPage() {
           </section>
 
           <section style={cardStyle}>
-            <h2 style={sectionTitleStyle}>{markdownFileName}</h2>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: 12,
+                flexWrap: 'wrap',
+              }}
+            >
+              <h2 style={sectionTitleStyle}>{markdownFileName}</h2>
+              <button
+                type="button"
+                onClick={copyMarkdownOutput}
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: '1px solid var(--border)',
+                  background: 'var(--card-muted)',
+                  color: 'var(--foreground)',
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: 13,
+                }}
+              >
+                {copiedMarkdown === 'main'
+                  ? isEnglish
+                    ? 'Copied'
+                    : '已复制'
+                  : isEnglish
+                    ? 'Copy Markdown'
+                    : '复制 Markdown'}
+              </button>
+            </div>
             <pre
               style={{
                 marginTop: 14,
@@ -1800,6 +2046,230 @@ export default function EditorPage() {
             >
               {markdownOutput}
             </pre>
+
+            {isMultilingualMode ? (
+              <div style={{ display: 'grid', gap: 14, marginTop: 18 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ display: 'grid', gap: 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--foreground)' }}>
+                      {isEnglish ? 'Localized Markdown Versions' : '多语言 Markdown 版本'}
+                    </div>
+                    <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6 }}>
+                      {isEnglish
+                        ? 'Create extra Markdown files like index.en.md or index.de.md, then paste translated content here before publishing.'
+                        : '可以创建 `index.en.md`、`index.de.md` 这类附加 Markdown 文件，把翻译后的内容粘贴到这里后一起发布。'}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
+                      {isEnglish ? 'Existing Markdown files in this folder:' : '当前目录已存在的 Markdown 文件：'}{' '}
+                      {occupiedMarkdownFileNames.join(', ')}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={addLocalizedMarkdownFile}
+                    style={{
+                      padding: '10px 12px',
+                      borderRadius: 12,
+                      border: '1px solid var(--accent)',
+                      background: 'var(--accent-soft)',
+                      color: 'var(--accent-soft-text)',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: 13,
+                    }}
+                  >
+                    {isEnglish ? 'Create Version' : '创建版本'}
+                  </button>
+                </div>
+
+                {localizedMarkdownFiles.map((file, index) => {
+                  const normalizedFileName = normalizeOptionalMarkdownFileName(file.fileName)
+                  const hasConflict = localizedMarkdownConflicts.has(file.id)
+
+                  return (
+                  <div
+                    key={file.id}
+                    style={{
+                      display: 'grid',
+                      gap: 10,
+                      padding: 14,
+                      borderRadius: 14,
+                      border: '1px solid var(--border)',
+                      background: 'var(--card-muted)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>
+                        {isEnglish ? `Version ${index + 1}` : `版本 ${index + 1}`}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLocalizedMarkdownFile(file.id)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: 10,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                          color: 'var(--foreground)',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: 12,
+                        }}
+                      >
+                        {isEnglish ? 'Remove' : '删除'}
+                      </button>
+                    </div>
+
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>
+                        {isEnglish ? 'Markdown file name' : 'Markdown 文件名'}
+                      </span>
+                      <input
+                        value={file.fileName}
+                        onChange={(event) =>
+                          updateLocalizedMarkdownFile(file.id, {
+                            fileName: event.target.value,
+                          })}
+                        onBlur={(event) =>
+                          updateLocalizedMarkdownFile(file.id, {
+                            fileName: normalizeOptionalMarkdownFileName(event.target.value),
+                          })}
+                        placeholder="index.en.md"
+                        style={{
+                          ...inputStyle,
+                          border: hasConflict ? '1px solid #dc2626' : inputStyle.border,
+                        }}
+                      />
+                    </label>
+
+                    {hasConflict ? (
+                      <div style={{ fontSize: 12, color: '#dc2626', lineHeight: 1.6 }}>
+                        {isEnglish
+                          ? `This file name conflicts with an existing Markdown file: ${normalizedFileName || file.fileName}`
+                          : `该文件名与已有 Markdown 文件冲突：${normalizedFileName || file.fileName}`}
+                      </div>
+                    ) : null}
+
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>
+                        {isEnglish ? 'Target language' : '目标语言'}
+                      </span>
+                      <input
+                        value={file.targetLanguage || ''}
+                        onChange={(event) =>
+                          updateLocalizedMarkdownFile(file.id, {
+                            targetLanguage: event.target.value,
+                          })}
+                        placeholder={isEnglish ? 'Japanese' : '日文'}
+                        style={inputStyle}
+                      />
+                    </label>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gap: 10,
+                        padding: 12,
+                        borderRadius: 12,
+                        border: '1px solid var(--border)',
+                        background: 'var(--card)',
+                      }}
+                    >
+                      <div style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
+                        {isEnglish
+                          ? 'Copy a ready-to-use prompt with the original Markdown, then paste it into your preferred AI tool for translation.'
+                          : '可一键复制“提示词 + 原始 Markdown”，再粘贴到你常用的 AI 工具里直接翻译。'}
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => copyTranslationPrompt(file.id, file.targetLanguage || '')}
+                          style={{
+                            padding: '10px 12px',
+                            borderRadius: 12,
+                            border: '1px solid var(--accent)',
+                            background: 'var(--accent-soft)',
+                            color: 'var(--accent-soft-text)',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          {copiedMarkdown === file.id
+                            ? isEnglish
+                              ? 'Prompt Copied'
+                              : '提示词已复制'
+                            : isEnglish
+                              ? 'Copy Prompt + Markdown'
+                              : '复制提示词和 Markdown'}
+                        </button>
+                        {AI_TRANSLATION_LINKS.map((link) => (
+                          <a
+                            key={link.label}
+                            href={link.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              minHeight: 40,
+                              padding: '0 12px',
+                              borderRadius: 12,
+                              border: '1px solid var(--border)',
+                              background: 'var(--card-muted)',
+                              color: 'var(--foreground)',
+                              textDecoration: 'none',
+                              fontWeight: 600,
+                              fontSize: 13,
+                            }}
+                          >
+                            {link.label}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+
+                    <label style={{ display: 'grid', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700 }}>
+                        {isEnglish ? 'Localized Markdown content' : '多语言 Markdown 内容'}
+                      </span>
+                      <MarkdownComposer
+                        textareaRef={getLocalizedTextareaRef(file.id)}
+                        value={file.content}
+                        onChange={(nextValue) =>
+                          updateLocalizedMarkdownFile(file.id, {
+                            content: nextValue,
+                          })}
+                        minHeight={220}
+                        showHeightControls={false}
+                        placeholder={
+                          isEnglish
+                            ? 'Paste translated Markdown content here...'
+                            : '把翻译后的 Markdown 内容粘贴到这里...'
+                        }
+                      />
+                    </label>
+                  </div>
+                )})}
+              </div>
+            ) : null}
           </section>
         </div>
       )}
@@ -1846,6 +2316,12 @@ export default function EditorPage() {
                 : isFlatMarkdownMode
                   ? `本次会将 \`${markdownFileName}\` 直接提交到 posts 路径下。`
                   : `本次会将 \`${markdownFileName}\` 和当前文章目录下的图片等资源文件一起提交到 GitHub。`}
+              {isMultilingualMode && normalizeLocalizedMarkdownFiles(draft.localizedMarkdownFiles).length ? (
+                <>
+                  <br />
+                  {isEnglish ? 'Additional localized Markdown files will be committed together.' : '附加的多语言 Markdown 文件也会一并提交。'}
+                </>
+              ) : null}
               <br />
               {isEnglish ? 'Article folder: ' : '文章目录：'}
               {draft.folderName}
@@ -1999,6 +2475,3 @@ export default function EditorPage() {
     </main>
   )
 }
-
-
-

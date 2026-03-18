@@ -32,6 +32,8 @@ export function createEmptyDraft(
     frontmatter: createDefaultFrontmatter(slug, date),
     body: '',
     assets: [],
+    localizedMarkdownFiles: [],
+    remoteMarkdownFileNames: [],
     remoteAssetNames: [],
     frontmatterPreferences,
   }

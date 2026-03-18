@@ -10,7 +10,7 @@ import {
   normalizePostContentMode,
   normalizePostMarkdownFileName,
 } from '@/lib/site-settings'
-import type { DraftAsset, PostDraft } from '@/lib/types'
+import { normalizeLocalizedMarkdownFiles, type DraftAsset, type PostDraft } from '@/lib/types'
 
 const DRAFT_PREFIX = 'draft:'
 
@@ -93,6 +93,12 @@ export async function loadDraftFromStorage(folderName: string): Promise<PostDraf
       contentMode: normalizedContentMode,
       markdownFileName: normalizePostMarkdownFileName(parsed.markdownFileName),
       frontmatter: normalizeFrontmatter(parsed.frontmatter),
+      localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(parsed.localizedMarkdownFiles),
+      remoteMarkdownFileNames: Array.isArray(parsed.remoteMarkdownFileNames)
+        ? parsed.remoteMarkdownFileNames
+            .map((name) => normalizePostMarkdownFileName(name))
+            .filter(Boolean)
+        : [],
       assets: restoreAssetPreviewUrls(
         mergeStoredAssets(parsed.assets || [], storedAssetMap).map((asset) =>
           asset.contentBase64.trim()
@@ -144,6 +150,12 @@ export function listDraftsFromStorage(): PostDraft[] {
       contentMode: normalizePostContentMode(draft.contentMode),
       markdownFileName: normalizePostMarkdownFileName(draft.markdownFileName),
       frontmatter: normalizeFrontmatter(draft.frontmatter),
+      localizedMarkdownFiles: normalizeLocalizedMarkdownFiles(draft.localizedMarkdownFiles),
+      remoteMarkdownFileNames: Array.isArray(draft.remoteMarkdownFileNames)
+        ? draft.remoteMarkdownFileNames
+            .map((name) => normalizePostMarkdownFileName(name))
+            .filter(Boolean)
+        : [],
     }))
     .sort((a, b) => {
       const aDate = new Date(a.frontmatter.date || 0).getTime()

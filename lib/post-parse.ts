@@ -89,6 +89,8 @@ export function parseIndexMdToDraft(
     frontmatter,
     body: parsed.content.trim(),
     assets: [],
+    localizedMarkdownFiles: [],
+    remoteMarkdownFileNames: [],
     remoteAssetNames: [],
   }
 }
