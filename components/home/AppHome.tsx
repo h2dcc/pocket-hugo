@@ -23,6 +23,7 @@ type PanelKey = 'auth' | 'repo' | 'page' | 'settings' | null
 
 type GithubSessionResponse = {
   authenticated: boolean
+  mode?: 'github' | 'local'
   user?: {
     login: string
     name: string
@@ -227,6 +228,7 @@ export default function HomePage() {
   const [newPageFileName, setNewPageFileName] = useState('')
   const [newPageError, setNewPageError] = useState('')
   const [newPageStatus, setNewPageStatus] = useState('')
+  const isLocalMode = session.mode === 'local'
 
   const hasRepoConfig = Boolean(session.repoConfig)
   const hasPageConfig = Boolean(session.pageConfig?.filePath)
@@ -306,6 +308,7 @@ export default function HomePage() {
       const nextSession = result as GithubSessionResponse & { ok: true }
       setSession({
         authenticated: nextSession.authenticated,
+        mode: nextSession.mode,
         user: nextSession.user,
         repoConfig: nextSession.repoConfig || null,
         pageConfig: nextSession.pageConfig || null,
@@ -362,6 +365,12 @@ export default function HomePage() {
   }, [])
 
   useEffect(() => {
+    if (isLocalMode) {
+      setRepos([])
+      setReposLoading(false)
+      return
+    }
+
     if (!session.authenticated) {
       setRepos([])
       setDirectories([])
@@ -396,22 +405,27 @@ export default function HomePage() {
     }
 
     fetchRepos()
-  }, [session.authenticated, selectedRepoFullName])
+  }, [isLocalMode, session.authenticated, selectedRepoFullName])
 
   useEffect(() => {
+    if (isLocalMode) return
     if (!selectedRepoFullName) return
     const repo = repos.find((item) => item.fullName === selectedRepoFullName)
     if (!repo || selectedBranch) return
     setSelectedBranch(repo.defaultBranch)
-  }, [repos, selectedRepoFullName, selectedBranch])
+  }, [isLocalMode, repos, selectedRepoFullName, selectedBranch])
 
   useEffect(() => {
     const [owner, repo] = selectedRepoFullName.split('/')
 
     if (!session.authenticated || !owner || !repo || !selectedBranch.trim()) {
+      if (isLocalMode && session.authenticated) {
+        // Local mode only needs the current path to browse within LOCAL_REPO_ROOT.
+      } else {
       setDirectories([])
       setDirectoryError('')
       return
+      }
     }
 
     async function fetchDirectories() {
@@ -420,10 +434,14 @@ export default function HomePage() {
 
       try {
         const query = new URLSearchParams({
-          owner,
-          repo,
-          branch: selectedBranch.trim(),
           path: directoryPath,
+          ...(isLocalMode
+            ? {}
+            : {
+                owner,
+                repo,
+                branch: selectedBranch.trim(),
+              }),
         })
         const response = await fetch(`/api/github/directories?${query.toString()}`, {
           cache: 'no-store',
@@ -444,12 +462,12 @@ export default function HomePage() {
     }
 
     fetchDirectories()
-  }, [session.authenticated, selectedRepoFullName, selectedBranch, directoryPath])
+  }, [isLocalMode, session.authenticated, selectedRepoFullName, selectedBranch, directoryPath])
 
   useEffect(() => {
     const [owner, repo] = selectedRepoFullName.split('/')
 
-    if (!session.authenticated || !owner || !repo || !selectedBranch.trim()) {
+    if (!session.authenticated || (!isLocalMode && (!owner || !repo || !selectedBranch.trim()))) {
       setPageDirectories([])
       setPageDirectoryError('')
       setPageFiles([])
@@ -463,10 +481,14 @@ export default function HomePage() {
 
       try {
         const query = new URLSearchParams({
-          owner,
-          repo,
-          branch: selectedBranch.trim(),
           path: pageDirectoryPath,
+          ...(isLocalMode
+            ? {}
+            : {
+                owner,
+                repo,
+                branch: selectedBranch.trim(),
+              }),
         })
         const response = await fetch(`/api/github/directories?${query.toString()}`, {
           cache: 'no-store',
@@ -487,12 +509,12 @@ export default function HomePage() {
     }
 
     fetchPageDirectories()
-  }, [session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
+  }, [isLocalMode, session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
 
   useEffect(() => {
     const [owner, repo] = selectedRepoFullName.split('/')
 
-    if (!session.authenticated || !owner || !repo || !selectedBranch.trim()) {
+    if (!session.authenticated || (!isLocalMode && (!owner || !repo || !selectedBranch.trim()))) {
       setPageFiles([])
       setPageFilesError('')
       return
@@ -504,10 +526,14 @@ export default function HomePage() {
 
       try {
         const query = new URLSearchParams({
-          owner,
-          repo,
-          branch: selectedBranch.trim(),
           path: pageDirectoryPath,
+          ...(isLocalMode
+            ? {}
+            : {
+                owner,
+                repo,
+                branch: selectedBranch.trim(),
+              }),
         })
         const response = await fetch(`/api/github/page-files?${query.toString()}`, {
           cache: 'no-store',
@@ -528,7 +554,7 @@ export default function HomePage() {
     }
 
     fetchPageFiles()
-  }, [session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
+  }, [isLocalMode, session.authenticated, selectedRepoFullName, selectedBranch, pageDirectoryPath, isEnglish])
 
   useEffect(() => {
     if (!pageFileOptions.length) return
@@ -550,6 +576,11 @@ export default function HomePage() {
   }, [pageDirectoryPath, pageFileName, pageFileOptions, savedPageDirectoryPath, savedPageFileName])
 
   async function handleLogout() {
+    if (isLocalMode) {
+      router.replace('/')
+      return
+    }
+
     await fetch('/api/auth/logout', { method: 'POST' })
     setSession({ authenticated: false })
     setRepos([])
@@ -572,6 +603,41 @@ export default function HomePage() {
   }
 
   async function handleSaveConfig() {
+    if (isLocalMode) {
+      if (!postsBasePath.trim()) {
+        setConfigError(isEnglish ? 'Please choose a posts directory first.' : '请先选择文章目录。')
+        return
+      }
+
+      setSavingConfig(true)
+      setConfigError('')
+      setConfigStatus('')
+
+      try {
+        const response = await fetch('/api/github/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            postsBasePath: postsBasePath.trim(),
+          }),
+        })
+        const result = await response.json()
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.error || (isEnglish ? 'Failed to save repository settings' : '保存配置失败'))
+        }
+
+        setSession((prev) => ({ ...prev, repoConfig: result.repoConfig }))
+        setConfigStatus(isEnglish ? 'Local repository settings saved.' : '本地仓库配置已保存。')
+        return
+      } catch (error) {
+        setConfigError(error instanceof Error ? error.message : isEnglish ? 'Failed to save repository settings' : '保存配置失败')
+        return
+      } finally {
+        setSavingConfig(false)
+      }
+    }
+
     const [owner, repo] = selectedRepoFullName.split('/')
 
     if (!owner || !repo) {
@@ -883,6 +949,7 @@ export default function HomePage() {
                 <span>{isEnglish ? 'Repo' : '仓库'}</span>
               </button>
 
+              {!isLocalMode ? (
               <button
                 type="button"
                 onClick={() => {
@@ -902,6 +969,7 @@ export default function HomePage() {
                 <PageIcon />
                 <span>{isEnglish ? 'Page' : '页面'}</span>
               </button>
+              ) : null}
 
               <button
                 type="button"
@@ -927,9 +995,15 @@ export default function HomePage() {
       {visiblePanel === 'auth' ? (
         <section style={cardStyle}>
           <div>
-            <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'GitHub Sign In' : 'GitHub 登录'}</h2>
+            <h2 style={{ margin: 0, fontSize: 14 }}>
+              {isLocalMode ? (isEnglish ? 'Local Repository Mode' : '本地仓库模式') : isEnglish ? 'GitHub Sign In' : 'GitHub 登录'}
+            </h2>
             <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
-              {isEnglish
+              {isLocalMode
+                ? isEnglish
+                  ? 'Local repository mode is enabled. GitHub sign-in is bypassed on this device.'
+                  : '当前设备已启用本地仓库模式，不需要 GitHub 登录。'
+                : isEnglish
                 ? 'Sign in to choose your Hugo repository and continue creating, loading, and publishing posts.'
                 : '登录后即可选择你的 Hugo 仓库，并继续新建、读取和发布文章。'}
             </div>
@@ -938,7 +1012,7 @@ export default function HomePage() {
           {authLoading ? <div style={{ color: 'var(--muted)' }}>{isEnglish ? 'Checking sign-in status...' : '正在检查登录状态...'}</div> : null}
           {authError ? <div style={{ color: 'var(--danger)' }}>{authError}</div> : null}
 
-          {!authLoading && !session.authenticated ? (
+          {!authLoading && !session.authenticated && !isLocalMode ? (
             <a
               href="/api/auth/login"
               style={{
@@ -984,6 +1058,7 @@ export default function HomePage() {
                 </div>
               </div>
 
+              {!isLocalMode ? (
               <button
                 type="button"
                 onClick={handleLogout}
@@ -999,6 +1074,7 @@ export default function HomePage() {
               >
                 {isEnglish ? 'Sign Out' : '退出登录'}
               </button>
+              ) : null}
             </>
           ) : null}
         </section>
@@ -1009,12 +1085,17 @@ export default function HomePage() {
           <div>
             <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Repository Settings' : '仓库'}</h2>
             <div style={{ marginTop: 6, fontSize: 14, color: 'var(--muted)' }}>
-              {isEnglish
+              {isLocalMode
+                ? isEnglish
+                  ? 'Choose the posts directory inside your local repository root.'
+                  : '选择本地仓库根目录中的文章目录。'
+                : isEnglish
                 ? 'Choose the Hugo repository, branch, and posts directory you want to publish into.'
                 : '选择你要发布文章的 Hugo 仓库、分支和文章目录。'}
             </div>
           </div>
 
+          {!isLocalMode ? (
           <label style={{ display: 'grid', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{isEnglish ? 'Hugo Repository' : '选择 Hugo 仓库'}</span>
             <select
@@ -1030,7 +1111,16 @@ export default function HomePage() {
               ))}
             </select>
           </label>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600 }}>{isEnglish ? 'Local Repository' : '本地仓库'}</span>
+              <div style={{ ...inputStyle, wordBreak: 'break-all' }}>
+                {session.repoConfig?.owner}/{session.repoConfig?.repo}
+              </div>
+            </div>
+          )}
 
+          {!isLocalMode ? (
           <label style={{ display: 'grid', gap: 8 }}>
             <span style={{ fontSize: 14, fontWeight: 600 }}>{isEnglish ? 'Branch' : '分支'}</span>
             <input
@@ -1048,6 +1138,7 @@ export default function HomePage() {
               style={inputStyle}
             />
           </label>
+          ) : null}
 
           <section
             style={{
@@ -1265,7 +1356,7 @@ export default function HomePage() {
         />
       ) : null}
 
-      {visiblePanel === 'page' && session.authenticated ? (
+      {visiblePanel === 'page' && session.authenticated && !isLocalMode ? (
         <section style={cardStyle}>
           <div>
             <h2 style={{ margin: 0, fontSize: 14 }}>{isEnglish ? 'Page Editor' : '页面'}</h2>
@@ -1623,8 +1714,9 @@ export default function HomePage() {
                 border: '1px solid var(--border)',
                 background: 'var(--card)',
                 color: 'var(--foreground)',
-                cursor: 'pointer',
+                cursor: !pageFileName.trim() ? 'not-allowed' : 'pointer',
                 fontWeight: 700,
+                opacity: !pageFileName.trim() ? 0.6 : 1,
               }}
             >
               {isEnglish ? 'Open Editor' : '打开页面编辑'}
@@ -1667,7 +1759,7 @@ export default function HomePage() {
             style={{
               display: 'grid',
               gridTemplateColumns:
-                hasPageConfig && session.pageConfig?.mode === 'live'
+                hasPageConfig && session.pageConfig?.mode === 'live' && !isLocalMode
                   ? 'repeat(2, minmax(0, 1fr))'
                   : '1fr',
               gap: 12,
@@ -1698,7 +1790,7 @@ export default function HomePage() {
               {isEnglish ? '+ New Post' : '+ 新建文章'}
             </Link>
 
-            {hasPageConfig && session.pageConfig?.mode === 'live' ? (
+            {!isLocalMode && hasPageConfig && session.pageConfig?.mode === 'live' ? (
               <Link
                 href="/page-editor"
                 style={{

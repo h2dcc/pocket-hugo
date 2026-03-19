@@ -24,6 +24,24 @@ const multilingualGuideSectionEn: GuideSection = {
   images: ['create-multi-versions.webp'],
 }
 
+const localRepoGuideSectionEn: GuideSection = {
+  title: 'Local Repository Mode',
+  body: [
+    'PocketHugo also provides a local-only repository mode for desktop testing or personal local workflows.',
+    'When `LOCAL_REPO_MODE=true`, the app reads and writes directly to the local repository defined by `LOCAL_REPO_ROOT`, without using GitHub sign-in or GitHub APIs.',
+    'This is an additional local workflow only. Running PocketHugo locally does not disable the normal GitHub workflow. If local mode is off, the original GitHub sign-in and publishing flow still works in local development.',
+  ],
+}
+
+const localRepoGuideSectionZh: GuideSection = {
+  title: '本地仓库模式',
+  body: [
+    'PocketHugo 也提供一个仅用于本机的本地仓库模式，适合桌面端测试或个人本地写作流程。',
+    '当 `LOCAL_REPO_MODE=true` 时，应用会直接读写 `LOCAL_REPO_ROOT` 指向的本地仓库，不再使用 GitHub 登录，也不会调用 GitHub API。',
+    '这只是额外提供的一种本地工作流，并不是对原有 GitHub 方案的替代。即使你在本地运行 PocketHugo，只要关闭本地模式，仍然可以继续使用原来的 GitHub 登录和发布流程。',
+  ],
+}
+
 const multilingualGuideSectionZh: GuideSection = {
   title: '创建多语言版本',
   body: [
@@ -88,6 +106,14 @@ const guideSections: { en: GuideSection[]; zh: GuideSection[] } = {
         'After signing in with GitHub, configure your repository, posts path, page editor path, and publishing preferences on the home screen.',
       ],
       images: ['where-to-start.webp'],
+    },
+    {
+      title: 'Local Repository Mode',
+      body: [
+        'PocketHugo also provides a local-only repository mode for desktop testing or personal local workflows.',
+        'When `LOCAL_REPO_MODE=true`, the app reads and writes directly to the local repository defined by `LOCAL_REPO_ROOT`, without using GitHub sign-in or GitHub APIs.',
+        'This is an additional local workflow only. Running PocketHugo locally does not disable the normal GitHub workflow. If local mode is off, the original GitHub sign-in and publishing flow still works in local development.',
+      ],
     },
     {
       title: 'Post Structure Mode',
@@ -317,33 +343,51 @@ function slugifyHeading(value: string) {
 export default function GuidePage() {
   const { isEnglish } = useLanguage()
   const sections = useMemo(() => {
-    const insertAfterWritingPosts = (items: GuideSection[], extraSection: GuideSection) => {
+    const insertAfterTitle = (
+      items: GuideSection[],
+      extraSection: GuideSection,
+      anchorTitle: string,
+    ) => {
       const baseSections = items.filter((section) => section.title !== extraSection.title)
-      const writingPostsIndex = baseSections.findIndex(
-        (section) => section.images?.includes('writing-posts.webp'),
+      const anchorIndex = baseSections.findIndex(
+        (section) => section.title === anchorTitle,
       )
 
-      if (writingPostsIndex < 0) {
+      if (anchorIndex < 0) {
         return [...baseSections, extraSection]
       }
 
       return [
-        ...baseSections.slice(0, writingPostsIndex + 1),
+        ...baseSections.slice(0, anchorIndex + 1),
         extraSection,
-        ...baseSections.slice(writingPostsIndex + 1),
+        ...baseSections.slice(anchorIndex + 1),
       ]
     }
 
     if (isEnglish) {
-      return insertAfterWritingPosts(
-        guideSections.en.filter(
-          (section) => section.title !== multilingualGuideSectionZh.title,
+      return insertAfterTitle(
+        insertAfterTitle(
+          guideSections.en.filter(
+            (section) => section.title !== multilingualGuideSectionZh.title,
+          ),
+          localRepoGuideSectionEn,
+          'Where to Start',
         ),
         multilingualGuideSectionEn,
+        'Writing Posts',
       )
     }
 
-    return insertAfterWritingPosts(guideSections.zh, multilingualGuideSectionZh)
+    return insertAfterTitle(
+      insertAfterTitle(
+        guideSections.zh,
+        localRepoGuideSectionZh,
+        '浠庡摢閲屽紑濮?',
+      )
+      ,
+      multilingualGuideSectionZh,
+      '鏂囩珷鍐欎綔',
+    )
   }, [isEnglish])
   const tocTitle = isEnglish ? 'On This Page' : '本页目录'
 

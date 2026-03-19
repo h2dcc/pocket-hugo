@@ -31,6 +31,7 @@ export type PostDraft = {
   folderName: string
   contentMode?: PostContentMode
   markdownFileName?: string
+  repositoryMode?: 'github' | 'local'
   frontmatter: Frontmatter
   body: string
   assets: DraftAsset[]

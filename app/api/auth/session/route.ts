@@ -1,7 +1,19 @@
 import { NextResponse } from 'next/server'
-import { getGithubSession } from '@/lib/github-session'
+import { getGithubRepoConfigPreference, getGithubSession } from '@/lib/github-session'
+import { getLocalRepoSession, isLocalRepoMode } from '@/lib/local-repo'
 
 export async function GET() {
+  if (isLocalRepoMode()) {
+    const repoConfigPreference = await getGithubRepoConfigPreference()
+    const session = getLocalRepoSession()
+    return NextResponse.json({
+      ok: true,
+      ...session,
+      mode: 'local',
+      repoConfig: repoConfigPreference || session.repoConfig,
+    })
+  }
+
   const session = await getGithubSession()
 
   if (!session) {
@@ -10,6 +22,7 @@ export async function GET() {
 
   return NextResponse.json({
     ok: true,
+    mode: 'github',
     authenticated: true,
     user: session.user,
     repoConfig: session.repoConfig,

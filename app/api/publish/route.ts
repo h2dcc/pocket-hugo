@@ -11,6 +11,13 @@ import {
   normalizePostMarkdownFileName,
 } from '@/lib/site-settings'
 import { normalizeLocalizedMarkdownFiles, type PostDraft } from '@/lib/types'
+import {
+  getResolvedLocalRepoSession,
+  isLocalRepoMode,
+  removeLocalRepoPath,
+  writeLocalRepoBase64,
+  writeLocalRepoText,
+} from '@/lib/local-repo'
 
 function validateDraftForPublish(draft: PostDraft): string | null {
   const preferences = normalizeFrontmatterPreferences(
@@ -69,40 +76,106 @@ export async function POST(request: NextRequest) {
         )
       : []
 
-    const result = mode === 'auto_commit'
-      ? await autoCommitPostToGithub({
-          folderName: draft.folderName,
-          contentMode,
-          markdownFileName,
-          markdownContentBase64,
-          localizedMarkdownFiles: localizedMarkdownFiles.map((file) => ({
-            fileName: normalizePostMarkdownFileName(file.fileName),
-            contentBase64: stringToBase64(file.content),
-          })),
-          assets: changedAssets.map((asset) => ({
-            name: asset.name,
-            contentBase64: asset.contentBase64,
-          })),
-        })
-      : await publishPostToGithub({
-          folderName: draft.folderName,
-          contentMode,
-          markdownFileName,
-          markdownContentBase64,
-          localizedMarkdownFiles: localizedMarkdownFiles.map((file) => ({
-            fileName: normalizePostMarkdownFileName(file.fileName),
-            contentBase64: stringToBase64(file.content),
-          })),
-          assets: changedAssets.map((asset) => ({
-            name: asset.name,
-            contentBase64: asset.contentBase64,
-          })),
-          removedAssetNames: isBundleMode(contentMode)
-            ? (draft.remoteAssetNames || []).filter(
-                (name) => !draft.assets.some((asset) => asset.name === name),
-              )
-            : [],
-        })
+    const localizedFiles = localizedMarkdownFiles.map((file) => ({
+      fileName: normalizePostMarkdownFileName(file.fileName),
+      contentBase64: stringToBase64(file.content),
+      content: file.content,
+    }))
+    const removedAssetNames = isBundleMode(contentMode)
+      ? (draft.remoteAssetNames || []).filter(
+          (name) => !draft.assets.some((asset) => asset.name === name),
+        )
+      : []
+
+    const result = isLocalRepoMode()
+      ? await (async () => {
+          const { repoConfig } = await getResolvedLocalRepoSession()
+          const postPath = isBundleMode(contentMode)
+            ? `${repoConfig.postsBasePath}/${draft.folderName}`
+            : repoConfig.postsBasePath
+          const markdownPath = isBundleMode(contentMode)
+            ? `${postPath}/${markdownFileName}`
+            : `${repoConfig.postsBasePath}/${markdownFileName}`
+
+          await writeLocalRepoText(markdownPath, markdownContent)
+
+          for (const file of localizedFiles) {
+            const filePath = isBundleMode(contentMode)
+              ? `${postPath}/${file.fileName}`
+              : `${repoConfig.postsBasePath}/${file.fileName}`
+            await writeLocalRepoText(filePath, file.content)
+          }
+
+          for (const asset of changedAssets) {
+            await writeLocalRepoBase64(`${postPath}/${asset.name}`, asset.contentBase64)
+          }
+
+          if (mode === 'publish') {
+            for (const assetName of removedAssetNames) {
+              await removeLocalRepoPath(`${postPath}/${assetName}`)
+            }
+          }
+
+          const fileChanges = [
+            { path: markdownPath, action: 'updated' as const },
+            ...localizedFiles.map((file) => ({
+              path: isBundleMode(contentMode)
+                ? `${postPath}/${file.fileName}`
+                : `${repoConfig.postsBasePath}/${file.fileName}`,
+              action: 'updated' as const,
+            })),
+            ...changedAssets.map((asset) => ({
+              path: `${postPath}/${asset.name}`,
+              action: 'updated' as const,
+            })),
+            ...(mode === 'publish'
+              ? removedAssetNames.map((assetName) => ({
+                  path: `${postPath}/${assetName}`,
+                  action: 'deleted' as const,
+                }))
+              : []),
+          ]
+
+          return {
+            path: `${postPath}/`,
+            commitCount: 1,
+            fileCount: fileChanges.length,
+            fileChanges,
+            commitSha: '',
+            repo: `local/${repoConfig.repo}`,
+            branch: repoConfig.branch,
+          }
+        })()
+      : mode === 'auto_commit'
+        ? await autoCommitPostToGithub({
+            folderName: draft.folderName,
+            contentMode,
+            markdownFileName,
+            markdownContentBase64,
+            localizedMarkdownFiles: localizedFiles.map((file) => ({
+              fileName: file.fileName,
+              contentBase64: file.contentBase64,
+            })),
+            assets: changedAssets.map((asset) => ({
+              name: asset.name,
+              contentBase64: asset.contentBase64,
+            })),
+          })
+        : await publishPostToGithub({
+            folderName: draft.folderName,
+            contentMode,
+            markdownFileName,
+            markdownContentBase64,
+            localizedMarkdownFiles: localizedFiles.map((file) => ({
+              fileName: file.fileName,
+              contentBase64: file.contentBase64,
+            })),
+            assets: changedAssets.map((asset) => ({
+              name: asset.name,
+              contentBase64: asset.contentBase64,
+            })),
+            removedAssetNames,
+          })
 
     return NextResponse.json({
       ok: true,

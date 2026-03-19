@@ -64,6 +64,29 @@ function mergeStoredAssets(
   })
 }
 
+function buildStoredAssetPreviewUrl(
+  draft: PostDraft,
+  asset: DraftAsset,
+  normalizedContentMode: ReturnType<typeof normalizePostContentMode>,
+) {
+  if (draft.repositoryMode === 'local') {
+    return `/api/local-asset?${new URLSearchParams({
+      scope: 'post',
+      folderName: draft.folderName,
+      assetName: asset.name,
+      contentMode: normalizedContentMode,
+      ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
+    }).toString()}`
+  }
+
+  return buildPostGithubAssetProxyUrl(
+    draft.folderName,
+    asset.name,
+    normalizedContentMode,
+    asset.mimeType,
+  )
+}
+
 export async function saveDraftToStorage(draft: PostDraft): Promise<DraftStorageSaveResult> {
   const draftKey = getDraftStorageKey(draft.folderName)
 
@@ -105,12 +128,7 @@ export async function loadDraftFromStorage(folderName: string): Promise<PostDraf
             ? asset
             : {
                 ...asset,
-                previewUrl: buildPostGithubAssetProxyUrl(
-                  parsed.folderName,
-                  asset.name,
-                  normalizedContentMode,
-                  asset.mimeType,
-                ),
+                previewUrl: buildStoredAssetPreviewUrl(parsed, asset, normalizedContentMode),
               },
         ),
       ),

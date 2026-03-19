@@ -86,6 +86,7 @@ export function parseIndexMdToDraft(
     folderName,
     contentMode,
     markdownFileName,
+    repositoryMode: 'github',
     frontmatter,
     body: parsed.content.trim(),
     assets: [],

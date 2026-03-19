@@ -29,6 +29,7 @@ export function createEmptyDraft(
     folderName,
     contentMode,
     markdownFileName,
+    repositoryMode: 'github',
     frontmatter: createDefaultFrontmatter(slug, date),
     body: '',
     assets: [],

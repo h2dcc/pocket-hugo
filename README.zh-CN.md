@@ -175,6 +175,38 @@ GITHUB_CLIENT_ID=your-client-id
 GITHUB_CLIENT_SECRET=your-client-secret
 ```
 
+## 本地仓库模式
+
+PocketHugo 也提供一个仅用于本机的本地仓库模式，适合桌面端测试或个人本地写作流程。
+
+- 不使用 GitHub 登录
+- 直接读写你电脑上的本地仓库
+- 只用于本地环境
+
+示例：
+
+```env
+APP_URL=http://localhost:3000
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=dummy
+GITHUB_CLIENT_SECRET=dummy
+LOCAL_REPO_MODE=true
+LOCAL_REPO_ROOT=D:/Hugo/my-blog
+```
+
+可选：
+
+```env
+LOCAL_POSTS_BASE_PATH=content/posts
+```
+
+说明：
+
+- 当 `LOCAL_REPO_MODE=true` 时，localhost 的 `/` 会直接进入 `/app`
+- 这个模式使用本地仓库文件，不走 GitHub API
+- 这是额外提供的一种本地方案，不是对 GitHub 方案的替代
+- 仅仅执行 `npm run dev` 并不代表不能使用 GitHub 方案；只要关闭本地模式，本地开发环境里仍然可以继续使用原有的 GitHub 登录与发布流程
+
 ## GitHub OAuth 配置
 
 进入：
@@ -202,6 +234,9 @@ GITHUB_CLIENT_SECRET=your-client-secret
 可选：
 
 - `LANDING_PAGE_HOSTS`
+- `LOCAL_REPO_MODE`
+- `LOCAL_REPO_ROOT`
+- `LOCAL_POSTS_BASE_PATH`
 
 生成 `APP_SESSION_SECRET` 示例：
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listGithubDir, listUserRepos } from '@/lib/github-api'
 import { requireGithubSession } from '@/lib/github-session'
+import { isLocalRepoMode, listLocalRepoDir } from '@/lib/local-repo'
 
 function normalizePath(input: string) {
   return input.trim().replace(/^\/+|\/+$/g, '')
@@ -8,11 +9,27 @@ function normalizePath(input: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    const path = normalizePath(String(request.nextUrl.searchParams.get('path') || ''))
+
+    if (isLocalRepoMode()) {
+      const items = await listLocalRepoDir(path)
+      return NextResponse.json({
+        ok: true,
+        path,
+        directories: items
+          .filter((item) => item.type === 'dir')
+          .map((item) => ({
+            name: item.name,
+            path: item.path,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      })
+    }
+
     const session = await requireGithubSession()
     const owner = String(request.nextUrl.searchParams.get('owner') || '').trim()
     const repo = String(request.nextUrl.searchParams.get('repo') || '').trim()
     const branch = String(request.nextUrl.searchParams.get('branch') || '').trim()
-    const path = normalizePath(String(request.nextUrl.searchParams.get('path') || ''))
 
     if (!owner || !repo || !branch) {
       return NextResponse.json(

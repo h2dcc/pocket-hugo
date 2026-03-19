@@ -1,9 +1,25 @@
 import { NextResponse } from 'next/server'
 import { listUserRepos } from '@/lib/github-api'
 import { requireGithubSession } from '@/lib/github-session'
+import { getLocalRepoSession, isLocalRepoMode } from '@/lib/local-repo'
 
 export async function GET() {
   try {
+    if (isLocalRepoMode()) {
+      const session = getLocalRepoSession()
+      return NextResponse.json({
+        ok: true,
+        repos: [{
+          id: 0,
+          owner: session.repoConfig.owner,
+          name: session.repoConfig.repo,
+          fullName: `${session.repoConfig.owner}/${session.repoConfig.repo}`,
+          private: true,
+          defaultBranch: session.repoConfig.branch,
+        }],
+      })
+    }
+
     const session = await requireGithubSession()
     const repos = await listUserRepos(session.accessToken)
 

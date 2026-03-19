@@ -191,6 +191,40 @@ GITHUB_CLIENT_ID=your-client-id
 GITHUB_CLIENT_SECRET=your-client-secret
 ```
 
+### Local Repository Mode
+
+PocketHugo also provides a local-only repository mode for desktop testing or personal local workflows.
+
+This mode:
+
+- does not use GitHub sign-in
+- reads and writes directly to a local repository on your machine
+- is intended for local use only
+
+Example:
+
+```env
+APP_URL=http://localhost:3000
+APP_SESSION_SECRET=replace-with-a-long-random-secret
+GITHUB_CLIENT_ID=dummy
+GITHUB_CLIENT_SECRET=dummy
+LOCAL_REPO_MODE=true
+LOCAL_REPO_ROOT=D:/Hugo/my-blog
+```
+
+Optional:
+
+```env
+LOCAL_POSTS_BASE_PATH=content/posts
+```
+
+Notes:
+
+- When `LOCAL_REPO_MODE=true`, localhost `/` opens `/app` directly.
+- In this mode, PocketHugo works with local repository files instead of GitHub APIs.
+- This is an additional local workflow, not a replacement for the GitHub workflow.
+- Running `npm run dev` does **not** mean GitHub mode is unavailable. If you turn local mode off, the normal GitHub sign-in and publishing flow still works in local development.
+
 ## GitHub OAuth Setup
 
 Go to:
@@ -218,6 +252,9 @@ Required:
 Optional:
 
 - `LANDING_PAGE_HOSTS`
+- `LOCAL_REPO_MODE`
+- `LOCAL_REPO_ROOT`
+- `LOCAL_POSTS_BASE_PATH`
 
 Generate `APP_SESSION_SECRET` example:
 

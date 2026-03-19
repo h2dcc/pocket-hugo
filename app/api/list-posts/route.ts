@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireGithubRepoContext } from '@/lib/github-context'
 import { listGithubDir } from '@/lib/github-read'
+import { getResolvedLocalRepoSession, isLocalRepoMode, listLocalRepoDir } from '@/lib/local-repo'
 import { normalizePostContentMode } from '@/lib/site-settings'
 
 function isMarkdownFileName(name: string) {
@@ -11,9 +12,12 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const contentMode = normalizePostContentMode(searchParams.get('mode'))
-    const { repoConfig } = await requireGithubRepoContext()
+    const localSession = isLocalRepoMode() ? await getResolvedLocalRepoSession() : null
+    const { repoConfig } = localSession || (await requireGithubRepoContext())
     const basePath = repoConfig.postsBasePath
-    const items = await listGithubDir(basePath)
+    const items = isLocalRepoMode()
+      ? await listLocalRepoDir(basePath)
+      : await listGithubDir(basePath)
 
     const posts =
       contentMode === 'flat_markdown'
@@ -30,7 +34,9 @@ export async function GET(request: Request) {
             items
               .filter((item) => item.type === 'dir')
               .map(async (item) => {
-                const folderItems = await listGithubDir(item.path)
+                const folderItems = isLocalRepoMode()
+                  ? await listLocalRepoDir(item.path)
+                  : await listGithubDir(item.path)
                 const markdownFiles = folderItems
                   .filter((folderItem) => folderItem.type === 'file' && isMarkdownFileName(folderItem.name))
                   .map((folderItem) => folderItem.name)
@@ -48,7 +54,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       ok: true,
       posts,
-      repo: `${repoConfig.owner}/${repoConfig.repo}`,
+      repo: isLocalRepoMode()
+        ? `local/${repoConfig.repo}`
+        : `${repoConfig.owner}/${repoConfig.repo}`,
       branch: repoConfig.branch,
       basePath,
     })

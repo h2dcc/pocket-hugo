@@ -1,6 +1,8 @@
 import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 import AppHome from '@/components/home/AppHome'
 import MarketingLanding from '@/components/home/MarketingLanding'
+import { isLocalRepoMode } from '@/lib/local-repo'
 
 function getLandingHosts() {
   const defaultHosts = ['leftn.com', 'www.leftn.com']
@@ -26,6 +28,10 @@ function normalizeHost(rawHost: string | null) {
 }
 
 export default async function RootPage() {
+  if (isLocalRepoMode()) {
+    redirect('/app')
+  }
+
   const headerStore = await headers()
   const requestHost = normalizeHost(
     headerStore.get('x-forwarded-host') || headerStore.get('host'),

@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireGithubRepoContext } from '@/lib/github-context'
 import { buildPostGithubAssetProxyUrl } from '@/lib/github-asset-url'
 import { getGithubFileContent, listGithubDir } from '@/lib/github-read'
+import {
+  getResolvedLocalRepoSession,
+  isLocalRepoMode,
+  listLocalRepoDir,
+  readLocalRepoText,
+} from '@/lib/local-repo'
 import { parseIndexMdToDraft } from '@/lib/post-parse'
 import {
   isBundleMode,
@@ -33,15 +39,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Missing folderName.' }, { status: 400 })
     }
 
-    const { repoConfig } = await requireGithubRepoContext()
+    const localSession = isLocalRepoMode() ? await getResolvedLocalRepoSession() : null
+    const { repoConfig } = localSession || (await requireGithubRepoContext())
     const basePath = repoConfig.postsBasePath
     const postPath = isBundleMode(contentMode) ? `${basePath}/${folderName}` : basePath
 
-    const markdownContent = await getGithubFileContent(`${postPath}/${markdownFileName}`)
+    const markdownContent = isLocalRepoMode()
+      ? await readLocalRepoText(`${postPath}/${markdownFileName}`)
+      : await getGithubFileContent(`${postPath}/${markdownFileName}`)
     const draftKey = isBundleMode(contentMode) ? folderName : markdownFileName
     const draft = parseIndexMdToDraft(draftKey, markdownContent, contentMode, markdownFileName)
     const remoteFiles = isBundleMode(contentMode)
-      ? (await listGithubDir(postPath)).filter((item) => item.type === 'file')
+      ? (
+          isLocalRepoMode()
+            ? await listLocalRepoDir(postPath)
+            : await listGithubDir(postPath)
+        ).filter((item) => item.type === 'file')
       : []
 
     const remoteAssets = isBundleMode(contentMode)
@@ -55,12 +68,20 @@ export async function POST(request: NextRequest) {
             name: item.item.name,
             mimeType: item.mimeType as string,
             contentBase64: '',
-            previewUrl: buildPostGithubAssetProxyUrl(
-              folderName,
-              item.item.name,
-              contentMode,
-              item.mimeType as string,
-            ),
+            previewUrl: isLocalRepoMode()
+              ? `/api/local-asset?${new URLSearchParams({
+                  scope: 'post',
+                  folderName,
+                  assetName: item.item.name,
+                  contentMode,
+                  ...(item.mimeType ? { mimeType: item.mimeType as string } : {}),
+                }).toString()}`
+              : buildPostGithubAssetProxyUrl(
+                  folderName,
+                  item.item.name,
+                  contentMode,
+                  item.mimeType as string,
+                ),
           }))
       : []
 
@@ -68,6 +89,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       draft: {
         ...draft,
+        repositoryMode: isLocalRepoMode() ? 'local' : 'github',
         remoteMarkdownFileNames: remoteFiles
           .map((item) => item.name)
           .filter((name) => /\.md$/i.test(name))
@@ -75,7 +97,9 @@ export async function POST(request: NextRequest) {
         assets: remoteAssets,
         remoteAssetNames: remoteAssets.map((asset) => asset.name),
       },
-      repo: `${repoConfig.owner}/${repoConfig.repo}`,
+      repo: isLocalRepoMode()
+        ? `local/${repoConfig.repo}`
+        : `${repoConfig.owner}/${repoConfig.repo}`,
       branch: repoConfig.branch,
       basePath,
     })

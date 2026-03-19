@@ -1,14 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { listUserRepos } from '@/lib/github-api'
 import {
+  getGithubPageConfigPreference,
+  getGithubRepoConfigPreference,
   saveGithubRepoConfigPreference,
   normalizePostsBasePath,
   requireGithubSession,
   saveGithubSession,
 } from '@/lib/github-session'
+import { getLocalRepoSession, isLocalRepoMode } from '@/lib/local-repo'
 
 export async function GET() {
   try {
+    if (isLocalRepoMode()) {
+      const session = getLocalRepoSession()
+      return NextResponse.json({
+        ok: true,
+        repoConfig: (await getGithubRepoConfigPreference()) || session.repoConfig,
+        pageConfig: await getGithubPageConfigPreference(),
+      })
+    }
+
     const session = await requireGithubSession()
     return NextResponse.json({
       ok: true,
@@ -28,6 +40,32 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    if (isLocalRepoMode()) {
+      const session = getLocalRepoSession()
+      const body = (await request.json()) as {
+        postsBasePath?: string
+      }
+
+      const postsBasePath = normalizePostsBasePath(String(body.postsBasePath || ''))
+      if (!postsBasePath) {
+        return NextResponse.json(
+          { ok: false, error: 'postsBasePath is required.' },
+          { status: 400 },
+        )
+      }
+
+      const repoConfig = {
+        ...session.repoConfig,
+        postsBasePath,
+      }
+      await saveGithubRepoConfigPreference(repoConfig)
+
+      return NextResponse.json({
+        ok: true,
+        repoConfig,
+      })
+    }
+
     const session = await requireGithubSession()
     const body = (await request.json()) as {
       owner?: string
