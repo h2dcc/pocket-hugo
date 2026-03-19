@@ -435,8 +435,8 @@ export default function GuidePage() {
             </p>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8, fontSize: 14 }}>
               {isEnglish
-                ? 'Version 1.0.3 - Auto-commit, remote preview recovery, and higher-efficiency WebP compression'
-                : '版本 1.0.3 - 自动提交、远程预览恢复与更高效的 WebP 压缩'}
+                ? 'Version 1.0.4 - Multilingual drafting helpers and local repository mode'
+                : '版本 1.0.4 - 多语言草稿辅助与本地仓库模式'}
             </p>
             <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8, fontSize: 13 }}>
               {isEnglish
