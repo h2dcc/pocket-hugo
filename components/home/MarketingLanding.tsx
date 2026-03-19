@@ -2,11 +2,13 @@
 
 import Link from 'next/link'
 import BrandMark from '@/components/layout/BrandMark'
+import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
 const githubRepoUrl = 'https://github.com/h2dcc/pocket-hugo'
+const themeDemoUrl = 'https://theme.leftn.com'
 
 const structureModes = [
   {
@@ -615,6 +617,82 @@ export default function MarketingLanding() {
               {isEnglish ? 'View Source' : '查看源码'}
             </a>
           </div>
+        </section>
+
+        <section
+          style={{
+            borderRadius: 24,
+            border: '1px solid var(--border)',
+            background:
+              'linear-gradient(135deg, color-mix(in srgb, var(--card) 88%, var(--hero-start) 12%) 0%, color-mix(in srgb, var(--card) 82%, var(--hero-end) 18%) 100%)',
+            padding: 'clamp(18px, 3vw, 24px)',
+            boxShadow: 'var(--shadow)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: 18,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'color-mix(in srgb, var(--card) 88%, white 12%)',
+                border: '1px solid var(--border)',
+                boxShadow: '0 10px 26px rgba(38, 58, 84, 0.08)',
+              }}
+            >
+              <PocketHugoThemeLogo size={40} />
+            </div>
+            <div style={{ display: 'grid', gap: 6, maxWidth: 680 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+                {isEnglish ? 'PocketHugo Theme' : 'PocketHugo Theme 主题'}
+              </div>
+              <h2 style={{ margin: 0, fontSize: 'clamp(20px, 3vw, 28px)', lineHeight: 1.2 }}>
+                {isEnglish
+                  ? 'Want the best PocketHugo experience? Try the official companion theme.'
+                  : '想获得更完整的 PocketHugo 体验，可以搭配这款官方主题一起使用。'}
+              </h2>
+              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8 }}>
+                {isEnglish
+                  ? 'PocketHugo Theme is designed alongside the editor workflow, so post structures, image handling, and publishing habits line up more naturally.'
+                  : 'PocketHugo Theme 是围绕编辑器工作流一起设计的，文章结构、图片组织和发布习惯会更自然地衔接起来。'}
+              </p>
+            </div>
+          </div>
+
+          <a
+            href={themeDemoUrl}
+            target="_blank"
+            rel="noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 44,
+              padding: '0 18px',
+              borderRadius: 999,
+              background: 'var(--foreground)',
+              color: 'var(--card)',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {isEnglish ? 'View Theme Demo' : '查看主题演示'}
+          </a>
         </section>
 
         <footer

@@ -3,9 +3,12 @@
 import { useMemo } from 'react'
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
+import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
+
+const themeDemoUrl = 'https://theme.leftn.com'
 
 type GuideSection = {
   title: string
@@ -443,6 +446,33 @@ export default function GuidePage() {
                 ? 'Project author: Lawtee - https://lawtee.com'
                 : '项目作者：Lawtee - https://lawtee.com'}
             </p>
+            <a
+              href={themeDemoUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 10,
+                width: 'fit-content',
+                marginTop: 4,
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px solid var(--border)',
+                background: 'var(--card-muted)',
+                color: 'var(--foreground)',
+                textDecoration: 'none',
+                fontSize: 13,
+                fontWeight: 700,
+              }}
+            >
+              <PocketHugoThemeLogo size={24} />
+              <span>
+                {isEnglish
+                  ? 'PocketHugo Theme Demo'
+                  : 'PocketHugo Theme 主题演示'}
+              </span>
+            </a>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <LanguageToggle />
