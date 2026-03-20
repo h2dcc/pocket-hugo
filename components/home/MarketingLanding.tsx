@@ -5,6 +5,7 @@ import BrandMark from '@/components/layout/BrandMark'
 import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import ThemeToggle from '@/components/theme/ThemeToggle'
+import LandingFooter from '@/components/layout/LandingFooter'
 import { useLanguage } from '@/lib/use-language'
 
 const githubRepoUrl = 'https://github.com/h2dcc/pocket-hugo'
@@ -695,52 +696,12 @@ export default function MarketingLanding() {
           </a>
         </section>
 
-        <footer
-          style={{
-            padding: '8px 4px 0',
-            color: 'var(--muted)',
-            fontSize: 13,
-            lineHeight: 1.8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            textAlign: 'center',
-          }}
-        >
-          <span>
-            {isEnglish ? '© 2026 PocketHugo. by Lawtee.' : '© 2026 PocketHugo. by Lawtee.'}
-          </span>
-          <a
-            href={blogUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={isEnglish ? 'Visit Lawtee blog' : '访问老T博客'}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 20,
-              height: 20,
-              borderRadius: 999,
-              overflow: 'hidden',
-              flexShrink: 0,
-            }}
-          >
-            <img
-              src="https://lawtee.com/favicon.ico"
-              alt=""
-              width="14"
-              height="14"
-              style={{ display: 'block', width: 14, height: 14 }}
-            />
-          </a>
-        </footer>
+                <LandingFooter projectName="PocketHugo" />
       </div>
     </main>
   )
 }
+
 
 
 

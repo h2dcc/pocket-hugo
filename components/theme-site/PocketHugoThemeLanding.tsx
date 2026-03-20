@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
-import { SiteFooter } from '@/components/layout/SiteChrome'
+import ThemeSiteFooter from '@/components/theme-site/ThemeSiteFooter'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
@@ -14,9 +14,9 @@ const sellingPoints = [
     titleEn: 'Image-led by default',
     titleZh: '默认就是图文一体',
     bodyEn:
-      'PocketHugo Theme is built around cover images, cards, and softer reading rhythm, so a personal site looks visual and modern instead of collapsing into a bare text list.',
+      'PocketHugo Theme is built around covers, cards, and visual rhythm, so home lists, taxonomy pages, and post entries all feel more complete before a reader even opens the post.',
     bodyZh:
-      'PocketHugo Theme 从一开始就把封面图、卡片和阅读节奏放在中心位置，不会轻易退化成那种只有标题和摘要的干瘪文字列表。',
+      'PocketHugo Theme 从一开始就把封面图、卡片和视觉节奏放在中心位置，所以首页列表、分类页和文章入口在点开之前就已经有比较完整的图文呈现。',
     icon: (
       <>
         <rect x="4" y="6" width="16" height="12" rx="3" stroke="currentColor" strokeWidth="1.8" fill="none" />
@@ -26,52 +26,12 @@ const sellingPoints = [
     ),
   },
   {
-    titleEn: 'Made for personal publishing',
-    titleZh: '更适合个人长期发布',
+    titleEn: 'Calmer on phones',
+    titleZh: '在手机上也更从容',
     bodyEn:
-      'It is designed for blogs, notes, links, talks, and longer posts that need both structure and personality on desktop and mobile.',
+      'Spacing, card density, and image handling are tuned so the theme still feels composed on a phone instead of collapsing into a cramped or overly technical reading surface.',
     bodyZh:
-      '它更适合博客、笔记、链接页、说说和长文这类长期个人发布内容，在电脑和手机上都尽量保留结构感和个人气质。',
-    icon: (
-      <>
-        <path d="M7 4.5H13.8L18 8.7V19.5A1.5 1.5 0 0 1 16.5 21H7.5A1.5 1.5 0 0 1 6 19.5V6A1.5 1.5 0 0 1 7.5 4.5H7Z" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M13 5V9H17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </>
-    ),
-  },
-  {
-    titleEn: 'Works especially well with quick talks',
-    titleZh: '特别适合快速发布说说',
-    bodyEn:
-      'PocketHugo and PocketHugo Theme are independent projects, but PocketHugo page updates and quick publishing fit especially well with the theme\'s talks page and cover-driven layout.',
-    bodyZh:
-      'PocketHugo 和 PocketHugo Theme 是两个独立项目，但 PocketHugo 的页面快速更新和发布节奏，和这套主题里的说说页、封面卡片展示恰好很容易衔接起来。',
-    icon: (
-      <>
-        <path d="M8 5.5H15.5A2.5 2.5 0 0 1 18 8V16A2.5 2.5 0 0 1 15.5 18.5H8.5A2.5 2.5 0 0 1 6 16V8A2.5 2.5 0 0 1 8.5 5.5Z" stroke="currentColor" strokeWidth="1.8" fill="none" />
-        <path d="M9 9.5H15M9 13H13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </>
-    ),
-  },
-]
-
-const highlights = [
-  {
-    titleEn: 'Cover cards with more presence',
-    titleZh: '更有存在感的封面卡片',
-    bodyEn:
-      'Home lists, taxonomy pages, and post cards all give more room to covers, helping visual posts feel complete before readers even open them.',
-    bodyZh:
-      '首页列表、分类页和文章卡片都会给封面图更多空间，让图文内容在点开之前就已经有比较完整的呈现。',
-    icon: <path d="M4 7.5A2.5 2.5 0 0 1 6.5 5H17.5A2.5 2.5 0 0 1 20 7.5V16.5A2.5 2.5 0 0 1 17.5 19H6.5A2.5 2.5 0 0 1 4 16.5V7.5Z" stroke="currentColor" strokeWidth="1.8" fill="none" />,
-  },
-  {
-    titleEn: 'A calmer mobile reading rhythm',
-    titleZh: '更从容的手机阅读节奏',
-    bodyEn:
-      'Spacing, card density, and image handling are tuned so the site still feels composed on a phone instead of turning cramped or overly technical.',
-    bodyZh:
-      '间距、卡片密度和图片处理都尽量往手机端阅读体验上靠，避免到了小屏幕就显得局促、发紧或者太像技术文档。',
+      '间距、卡片密度和图片处理都尽量往手机端阅读体验上靠，避免到了小屏幕就显得局促、发紧，或者一下子退化成那种只剩文字的技术说明页。',
     icon: (
       <>
         <rect x="7" y="3.5" width="10" height="17" rx="2.5" stroke="currentColor" strokeWidth="1.8" fill="none" />
@@ -80,35 +40,20 @@ const highlights = [
     ),
   },
   {
-    titleEn: 'Quick talks can flow outward',
-    titleZh: '说说内容可以继续往外同步',
+    titleEn: 'Made for long-term personal publishing',
+    titleZh: '更适合长期个人发布',
     bodyEn:
-      'When PocketHugo is used for quick talks or timeline-style posts, the theme can present them clearly and also expose JSON or XML outputs for syncing to Mastodon, Telegram, and similar platforms.',
+      'It is designed for blogs, notes, links, talks, and longer posts that need both structure and personality, giving a Hugo site a clearer publishing mood instead of just another skin.',
     bodyZh:
-      '如果你用 PocketHugo 快速发布说说或时间线内容，这个主题不仅能把它们展示清楚，还可以通过 JSON 或 XML 输出继续同步到 Mastodon、Telegram 这类平台。',
+      '它更适合博客、笔记、链接页、说说和长文这类长期个人发布内容，在保留结构感的同时，也尽量让站点有更明确的发布气质，而不是简单再换一张皮。',
     icon: (
       <>
-        <path d="M6 7.5A2.5 2.5 0 0 1 8.5 5H15.5A2.5 2.5 0 0 1 18 7.5V12.5A2.5 2.5 0 0 1 15.5 15H10L6.5 18V15.5A2.5 2.5 0 0 1 6 14V7.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" fill="none" />
-        <path d="M9 9.5H15M9 12H13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      </>
-    ),
-  },
-  {
-    titleEn: 'A theme with a stronger publishing mood',
-    titleZh: '一套更有发布氛围的主题',
-    bodyEn:
-      'PocketHugo Theme is less about adding another skin and more about giving a Hugo site a clearer visual language for covers, cards, notes, and long-term personal publishing.',
-    bodyZh:
-      'PocketHugo Theme 更强调给 Hugo 站点带来更完整的发布气质，而不是简单再换一张皮。',
-    icon: (
-      <>
-        <path d="M4.5 12H19.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M12 4.5L19.5 12L12 19.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 4.5H13.8L18 8.7V19.5A1.5 1.5 0 0 1 16.5 21H7.5A1.5 1.5 0 0 1 6 19.5V6A1.5 1.5 0 0 1 7.5 4.5H7Z" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M13 5V9H17" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </>
     ),
   },
 ]
-
 function CardIcon({ children }: { children: React.ReactNode }) {
   return (
     <div
@@ -217,24 +162,6 @@ export default function PocketHugoThemeLanding() {
           ))}
         </section>
 
-        <section style={{ borderRadius: 24, border: '1px solid var(--border)', background: 'var(--card)', padding: 'clamp(20px, 3.4vw, 28px)', boxShadow: 'var(--shadow)', display: 'grid', gap: 18 }}>
-          <div style={{ display: 'grid', gap: 8, maxWidth: 820 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{isEnglish ? 'Why It Feels Different' : '为什么它更像一个真正的博客主题'}</div>
-            <h2 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 34px)', lineHeight: 1.15 }}>{isEnglish ? 'It is built for visual publishing, not only for technical text.' : '它更适合图文并重的个人发布，而不只是承载一页页技术文字。'}</h2>
-            <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.9, fontSize: 15.5 }}>{isEnglish ? 'PocketHugo Theme gives more room to covers, image-led cards, talks, and longer reading rhythm, so your Hugo site can feel more alive and less like a compressed documentation shell.' : 'PocketHugo Theme 会给封面图、卡片、说说和长文阅读节奏更多空间，所以它更容易把 Hugo 站点做出“在持续更新”的感觉，而不是一层被极限压缩过的文档外壳。'}</p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-            {highlights.map((item) => (
-              <article key={item.titleEn} style={{ borderRadius: 20, border: '1px solid var(--border)', background: 'var(--card-muted)', padding: 20, minHeight: 190, display: 'grid', alignContent: 'start', gap: 10 }}>
-                <CardIcon>{item.icon}</CardIcon>
-                <h3 style={{ margin: 0, fontSize: 18, lineHeight: 1.4 }}>{isEnglish ? item.titleEn : item.titleZh}</h3>
-                <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.9, fontSize: 15 }}>{isEnglish ? item.bodyEn : item.bodyZh}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <section style={{ borderRadius: 24, border: '1px solid var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--card) 88%, var(--hero-start) 12%) 0%, color-mix(in srgb, var(--card) 82%, var(--hero-end) 18%) 100%)', padding: 'clamp(20px, 3.4vw, 28px)', boxShadow: 'var(--shadow)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 18, flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 8, maxWidth: 700 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>{isEnglish ? 'Quick updates and talks' : '快速更新与说说'}</div>
@@ -249,11 +176,13 @@ export default function PocketHugoThemeLanding() {
           </div>
         </section>
 
-        <SiteFooter />
+        <ThemeSiteFooter />
       </div>
     </main>
   )
 }
+
+
 
 
 

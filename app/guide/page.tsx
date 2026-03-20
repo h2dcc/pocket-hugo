@@ -4,7 +4,8 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import BrandMark from '@/components/layout/BrandMark'
-import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
+import { SiteHeader } from '@/components/layout/SiteChrome'
+import LandingFooter from '@/components/layout/LandingFooter'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
@@ -706,9 +707,10 @@ export default function GuidePage() {
         </Link>
       </section>
 
-      <SiteFooter />
+      <LandingFooter projectName="PocketHugo" />
     </main>
   )
 }
+
 
 

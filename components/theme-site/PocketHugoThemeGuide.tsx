@@ -4,7 +4,8 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
 import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
-import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
+import { SiteHeader } from '@/components/layout/SiteChrome'
+import ThemeSiteFooter from '@/components/theme-site/ThemeSiteFooter'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
@@ -287,7 +288,8 @@ export default function PocketHugoThemeGuide() {
         </div>
       </section>
 
-      <SiteFooter />
+      <ThemeSiteFooter />
     </main>
   )
 }
+
