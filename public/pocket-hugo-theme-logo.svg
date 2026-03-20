@@ -1,0 +1,28 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="28" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#DCE8F8"/>
+      <stop offset="1" stop-color="#F3E9DC"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="72" y1="64" x2="182" y2="188" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#607996"/>
+      <stop offset="1" stop-color="#49627E"/>
+    </linearGradient>
+    <filter id="shadow" x="28" y="28" width="200" height="200" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#2A3A58" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+
+  <rect x="28" y="28" width="200" height="200" rx="56" fill="url(#bg)"/>
+  <circle cx="186" cy="76" r="22" fill="#FFFFFF" fill-opacity="0.34"/>
+
+  <g filter="url(#shadow)">
+    <path d="M80 66C80 59.3726 85.3726 54 92 54H164C170.627 54 176 59.3726 176 66V124H80V66Z" fill="url(#panel)"/>
+    <path d="M80 92H176V176C176 185.941 167.941 194 158 194H98C88.0589 194 80 185.941 80 176V92Z" fill="#F7FAFF" fill-opacity="0.94"/>
+    <path d="M108 74H148" stroke="#E8F0FA" stroke-width="10" stroke-linecap="round"/>
+    <path d="M112 112V158" stroke="#49627E" stroke-width="12" stroke-linecap="round"/>
+    <path d="M112 158H144" stroke="#49627E" stroke-width="12" stroke-linecap="round"/>
+    <path d="M152 112V158" stroke="#607996" stroke-width="12" stroke-linecap="round"/>
+    <path d="M136 112H168" stroke="#607996" stroke-width="12" stroke-linecap="round"/>
+  </g>
+</svg>

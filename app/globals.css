@@ -276,3 +276,27 @@ select {
     position: static;
   }
 }
+
+.theme-preview-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.95fr) minmax(0, 1.15fr);
+  gap: 20px;
+  align-items: center;
+}
+
+.theme-preview-copy {
+  display: grid;
+  gap: 10px;
+  max-width: 620px;
+}
+
+@media (max-width: 767px) {
+  .theme-preview-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .theme-preview-copy {
+    max-width: none;
+  }
+}

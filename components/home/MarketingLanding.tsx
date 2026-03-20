@@ -9,6 +9,7 @@ import { useLanguage } from '@/lib/use-language'
 
 const githubRepoUrl = 'https://github.com/h2dcc/pocket-hugo'
 const themeDemoUrl = 'https://theme.leftn.com'
+const themeIntroUrl = '/pocket-hugo-theme'
 
 const structureModes = [
   {
@@ -330,10 +331,10 @@ export default function MarketingLanding() {
               >
                 <BrandMark size={44} />
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--hero-chip-text)' }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--hero-chip-text)' }}>
                     PocketHugo
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--hero-subtitle)' }}>
+                  <div style={{ fontSize: 12.5, color: 'var(--hero-subtitle)' }}>
                     {isEnglish ? 'Browser-first Hugo workflow' : '浏览器优先的 Hugo 工作流'}
                   </div>
                 </div>
@@ -374,24 +375,23 @@ export default function MarketingLanding() {
                 >
                   {isEnglish ? 'Open App' : '进入应用'}
                 </Link>
-                <a
-                  href={githubRepoUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  href={themeIntroUrl}
+                  aria-label={isEnglish ? 'PocketHugo Theme' : 'PocketHugo Theme 主题页'}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    minHeight: 42,
-                    padding: '0 16px',
+                    width: 42,
+                    minWidth: 42,
+                    height: 42,
                     borderRadius: 999,
                     border: '1px solid var(--border)',
                     background: 'rgba(255,255,255,0.6)',
-                    fontWeight: 600,
                   }}
                 >
-                  GitHub
-                </a>
+                  <img src="/pocket-hugo-theme-logo.svg" alt="" width="22" height="22" style={{ display: 'block', width: 22, height: 22 }} />
+                </Link>
               </div>
             </div>
 
@@ -405,7 +405,7 @@ export default function MarketingLanding() {
                   borderRadius: 999,
                   background: 'var(--hero-chip)',
                   color: 'var(--hero-chip-text)',
-                  fontSize: 12,
+                  fontSize: 12.5,
                   fontWeight: 700,
                 }}
               >
@@ -455,10 +455,10 @@ export default function MarketingLanding() {
           }}
         >
           <div style={{ display: 'grid', gap: 8, maxWidth: 760 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>
               {isEnglish ? 'Post Structure Modes' : '文章结构模式'}
             </div>
-            <h2 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 34px)', lineHeight: 1.15 }}>
+            <h2 style={{ margin: 0, fontSize: 'clamp(24px, 4vw, 34px)', lineHeight: 1.18 }}>
               {isEnglish
                 ? 'Built for Hugo, and compatible with Hexo, Astro, and similar Markdown workflows.'
                 : '为 Hugo 而生，也兼容 Hexo、Astro 等相近的 Markdown 工作流。'}
@@ -484,8 +484,8 @@ export default function MarketingLanding() {
                   gap: 10,
                 }}
               >
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <h3 style={{ margin: 0, fontSize: 17 }}>
+                <div style={{ display: 'grid', gap: 10 }}>
+                  <h3 style={{ margin: 0, fontSize: 18, lineHeight: 1.4 }}>
                     {isEnglish ? mode.titleEn : mode.titleZh}
                   </h3>
                   <code
@@ -496,7 +496,7 @@ export default function MarketingLanding() {
                       borderRadius: 999,
                       background: 'var(--card)',
                       border: '1px solid var(--border)',
-                      fontSize: 12,
+                      fontSize: 12.5,
                     }}
                   >
                     {mode.example}
@@ -528,11 +528,11 @@ export default function MarketingLanding() {
               }}
             >
               <FeatureIcon>{item.icon}</FeatureIcon>
-              <div style={{ display: 'grid', gap: 8 }}>
-                <h2 style={{ margin: 0, fontSize: 17 }}>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <h2 style={{ margin: 0, fontSize: 18, lineHeight: 1.4 }}>
                   {isEnglish ? item.titleEn : item.titleZh}
                 </h2>
-                <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.7 }}>
+                <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.9, fontSize: 15 }}>
                   {isEnglish ? item.bodyEn : item.bodyZh}
                 </p>
               </div>
@@ -554,11 +554,11 @@ export default function MarketingLanding() {
             flexWrap: 'wrap',
           }}
         >
-          <div style={{ display: 'grid', gap: 6, maxWidth: 640 }}>
+          <div style={{ display: 'grid', gap: 8, maxWidth: 700 }}>
             <h2 style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 30px)' }}>
               {isEnglish ? 'Start Right Away' : '直接开始使用'}
             </h2>
-            <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8 }}>
+            <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.9, fontSize: 15.5 }}>
               {isEnglish
                 ? 'Ready to use out of the box. Sign in with GitHub and start writing or publishing without a complicated setup.'
                 : '开箱即用，登录 GitHub 后即可开始写作和发布，不需要复杂配置。'}
@@ -658,7 +658,7 @@ export default function MarketingLanding() {
               <PocketHugoThemeLogo size={40} />
             </div>
             <div style={{ display: 'grid', gap: 6, maxWidth: 680 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--accent)' }}>
                 {isEnglish ? 'PocketHugo Theme' : 'PocketHugo Theme 主题'}
               </div>
               <h2 style={{ margin: 0, fontSize: 'clamp(20px, 3vw, 28px)', lineHeight: 1.2 }}>
@@ -666,7 +666,7 @@ export default function MarketingLanding() {
                   ? 'Want the best PocketHugo experience? Try the official companion theme.'
                   : '想获得更完整的 PocketHugo 体验，可以搭配这款官方主题一起使用。'}
               </h2>
-              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.8 }}>
+              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.9, fontSize: 15.5 }}>
                 {isEnglish
                   ? 'PocketHugo Theme is designed alongside the editor workflow, so post structures, image handling, and publishing habits line up more naturally.'
                   : 'PocketHugo Theme 是围绕编辑器工作流一起设计的，文章结构、图片组织和发布习惯会更自然地衔接起来。'}
@@ -741,3 +741,8 @@ export default function MarketingLanding() {
     </main>
   )
 }
+
+
+
+
+

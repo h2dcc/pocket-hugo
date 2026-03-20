@@ -1,10 +1,29 @@
-'use client'
+﻿'use client'
 
+import type { ReactNode } from 'react'
 import Link from 'next/link'
 import BrandMark from '@/components/layout/BrandMark'
 import { useLanguage } from '@/lib/use-language'
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  href?: string
+  title?: string
+  badgeEn?: string
+  badgeZh?: string
+  subtitleEn?: string
+  subtitleZh?: string
+  icon?: ReactNode
+}
+
+export function SiteHeader({
+  href = '/app',
+  title = 'PocketHugo',
+  badgeEn = 'Browser-first Hugo workflow',
+  badgeZh = '浏览器优先的 Hugo 工作流',
+  subtitleEn = 'Pocket publishing for Hugo across desktop, tablet, and phone',
+  subtitleZh = '适用于电脑、平板与手机的 Pocket Hugo 发布工具',
+  icon,
+}: SiteHeaderProps) {
   const { isEnglish } = useLanguage()
 
   return (
@@ -51,12 +70,10 @@ export function SiteHeader() {
           letterSpacing: 0.3,
         }}
       >
-        {isEnglish
-          ? 'Browser-first Hugo workflow'
-          : '浏览器优先的 Hugo 工作流'}
+        {isEnglish ? badgeEn : badgeZh}
       </div>
       <Link
-        href="/app"
+        href={href}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -67,9 +84,9 @@ export function SiteHeader() {
           zIndex: 1,
         }}
       >
-        <BrandMark size={32} />
+        {icon ?? <BrandMark size={32} />}
         <h1 style={{ margin: 0, fontSize: 'clamp(20px, 5vw, 26px)', letterSpacing: -0.45 }}>
-          PocketHugo
+          {title}
         </h1>
       </Link>
       <p
@@ -84,9 +101,7 @@ export function SiteHeader() {
           zIndex: 1,
         }}
       >
-        {isEnglish
-          ? 'Pocket publishing for Hugo across desktop, tablet, and phone'
-          : '适用于电脑、平板与手机的 Pocket Hugo 发布工具'}
+        {isEnglish ? subtitleEn : subtitleZh}
       </p>
     </section>
   )

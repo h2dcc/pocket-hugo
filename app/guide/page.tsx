@@ -1,14 +1,14 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import Link from 'next/link'
 import LanguageToggle from '@/components/language/LanguageToggle'
-import PocketHugoThemeLogo from '@/components/layout/PocketHugoThemeLogo'
+import BrandMark from '@/components/layout/BrandMark'
 import { SiteFooter, SiteHeader } from '@/components/layout/SiteChrome'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import { useLanguage } from '@/lib/use-language'
 
-const themeDemoUrl = 'https://theme.leftn.com'
+const appEntryUrl = '/app'
 
 type GuideSection = {
   title: string
@@ -404,7 +404,7 @@ export default function GuidePage() {
         gap: 16,
       }}
     >
-      <SiteHeader />
+      <SiteHeader href="/" />
 
       <section
         style={{
@@ -446,10 +446,8 @@ export default function GuidePage() {
                 ? 'Project author: Lawtee - https://lawtee.com'
                 : '项目作者：Lawtee - https://lawtee.com'}
             </p>
-            <a
-              href={themeDemoUrl}
-              target="_blank"
-              rel="noreferrer"
+            <Link
+              href={appEntryUrl}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -466,13 +464,13 @@ export default function GuidePage() {
                 fontWeight: 700,
               }}
             >
-              <PocketHugoThemeLogo size={24} />
+              <BrandMark size={24} />
               <span>
                 {isEnglish
-                  ? 'PocketHugo Theme Demo'
-                  : 'PocketHugo Theme 主题演示'}
+                  ? 'Open PocketHugo App'
+                  : '打开 PocketHugo 应用'}
               </span>
-            </a>
+            </Link>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             <LanguageToggle />
@@ -712,3 +710,5 @@ export default function GuidePage() {
     </main>
   )
 }
+
+
