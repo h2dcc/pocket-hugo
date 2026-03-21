@@ -66,13 +66,14 @@ html {
 html[data-theme='dark'] {
   color-scheme: dark;
 }
-
+@font-face { font-family: "fix-punct"; src: local("Arial"); unicode-range: U+0027; }
+@font-face { font-family: "clear-punct"; src: local("SimSun"), local("Songti SC"), local("serif"); unicode-range: U+2018-2019, U+201C-201D, U+2014, U+2026, U+FF0C, U+3002, U+FF1A, U+FF1B; }
 body {
   color: var(--foreground);
   background:
     radial-gradient(circle at top, rgba(148, 163, 184, 0.12), transparent 30%),
     var(--background);
-  font-family: -apple-system,BlinkMacSystemFont,PingFang SC,Hiragino Sans GB,Source Han Sans CN,Helvetica,Arial,Microsoft YaHei,Segoe UI,sans-serif;
+  font-family: "fix-punct", "clear-punct", system-ui, -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-size: 0.88rem;
